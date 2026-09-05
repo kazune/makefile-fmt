@@ -40,13 +40,14 @@ pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, E
     let shfmt = shfmt::Shfmt::new(shfmt_path.as_ref())?;
     let mut edits = assignment_edits(source, &lines);
     for line in &lines {
-        if line.kind == scan::LineKind::Recipe && line.format_safe {
-            if let Some(replacement) = recipe::format(&source[line.range.clone()], &shfmt)? {
-                edits.push(Edit {
-                    range: line.range.clone(),
-                    replacement,
-                });
-            }
+        if line.kind == scan::LineKind::Recipe
+            && line.format_safe
+            && let Some(replacement) = recipe::format(&source[line.range.clone()], &shfmt)?
+        {
+            edits.push(Edit {
+                range: line.range.clone(),
+                replacement,
+            });
         }
     }
     edits.sort_by_key(|edit| edit.range.start);

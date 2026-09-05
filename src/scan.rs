@@ -230,15 +230,14 @@ fn explicit_eval(bytes: &[u8]) -> Option<usize> {
             continue;
         }
         let rest = trim_start(&bytes[i + 2..]);
-        if let Some(after) = rest.strip_prefix(b"eval") {
-            if after
+        if let Some(after) = rest.strip_prefix(b"eval")
+            && (after
                 .first()
                 .is_some_and(|c| c.is_ascii_whitespace() || matches!(c, b')' | b'}'))
                 || after.starts_with(b"\\\n")
-                || after.starts_with(b"\\\r\n")
-            {
-                return Some(i);
-            }
+                || after.starts_with(b"\\\r\n"))
+        {
+            return Some(i);
         }
     }
     None
@@ -381,10 +380,10 @@ pub fn scan(source: &[u8]) -> Result<Vec<Line>, Unsupported> {
             } else {
                 LineKind::Unknown
             };
-            if let Some(name) = keyword(clean, b"undefine") {
-                if VARIABLES.contains(&trim(name)) {
-                    return Err(fail(number, trim(name)));
-                }
+            if let Some(name) = keyword(clean, b"undefine")
+                && VARIABLES.contains(&trim(name))
+            {
+                return Err(fail(number, trim(name)));
             }
             after_rule = false;
             safe_rule = false;
