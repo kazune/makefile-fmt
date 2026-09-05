@@ -153,6 +153,17 @@ pub(crate) fn assignment(bytes: &[u8]) -> Option<Assignment> {
     for i in syntax_positions(bytes) {
         for operator in [b":::=".as_slice(), b"::=", b":=", b"?=", b"+=", b"!=", b"="] {
             if bytes[i..].starts_with(operator) {
+                let name = trim(unmodified(trim(&bytes[..i])));
+                // Spaces outside Make references separate words, not parts
+                // of a literal variable name. In particular, '=' in an
+                // ifeq/ifneq argument must not turn it into an assignment.
+                if name.is_empty()
+                    || syntax_positions(name)
+                        .into_iter()
+                        .any(|p| name[p].is_ascii_whitespace())
+                {
+                    return None;
+                }
                 return Some(Assignment {
                     operator: i..i + operator.len(),
                 });
@@ -281,10 +292,13 @@ pub fn scan(source: &[u8]) -> Result<Vec<Line>, Unsupported> {
         let kind;
         if define_depth > 0 {
             // TAB-prefixed text in a define is literal recipe text, including
-            // apparent define/endef keywords.
-            if !raw.starts_with(b"\t") && define_name(clean).is_some() {
+            // apparent define/endef keywords. Inside the body GNU Make 4.4.1
+            // counts bare keywords, even `define = value`, without parsing
+            // assignments, modifiers, or stripping comments from the line.
+            let body = trim_start(&folded);
+            if !raw.starts_with(b"\t") && keyword(body, b"define").is_some() {
                 define_depth += 1;
-            } else if !raw.starts_with(b"\t") && keyword(text, b"endef").is_some() {
+            } else if !raw.starts_with(b"\t") && keyword(body, b"endef").is_some() {
                 define_depth -= 1;
             }
             kind = if define_depth == 0 {
@@ -353,15 +367,17 @@ pub fn scan(source: &[u8]) -> Result<Vec<Line>, Unsupported> {
             .find(|&p| text[p] == b':')
         {
             let targets = trim(&text[..colon]);
-            for target in targets.split(|b| b.is_ascii_whitespace()) {
+            let literal_targets = targets.strip_suffix(b"&").unwrap_or(targets);
+            for target in literal_targets.split(|b| b.is_ascii_whitespace()) {
                 if [b".ONESHELL".as_slice(), b".POSIX"].contains(&target) {
                     return Err(fail(number, target));
                 }
             }
             let rest = trim_start(&text[colon + 1..]);
-            check_assignment(rest, number)?;
+            let variable_part = trim_start(rest.strip_prefix(b":").unwrap_or(rest));
+            check_assignment(variable_part, number)?;
             kind = LineKind::Rule;
-            after_rule = assignment(rest).is_none();
+            after_rule = assignment(variable_part).is_none();
             // Complex and inline rules, and all their recipes, remain opaque.
             safe_rule = format_safe
                 && !targets.is_empty()
@@ -407,11 +423,15 @@ mod tests {
     fn detects_global_features_and_aliases() {
         for input in [
             ".ONESHELL:",
+            ".ONESHELL&:",
+            ".POSIX&::",
             ".POSIX: x",
             "x .ONESHELL: y",
             "SHELL=/bin/sh",
             "override SHELL := sh",
             "foo: private SHELL != echo sh",
+            "foo:: override SHELL := /bin/sh",
+            "foo:: .SHELLFLAGS = -ec",
             "define SHELL",
             "override define .SHELLFLAGS :=",
             ".RECIPEPREFIX=>",
@@ -471,6 +491,11 @@ mod tests {
         assert!(!lines[1].format_safe);
         assert!(!lines[3].format_safe);
         assert!(lines[5].format_safe);
+        let lines = scan(b"ifeq (a=b,a=b)\nX=1\nelse\nX=2\nendif\nY=3\n").unwrap();
+        assert_eq!(lines[0].kind, LineKind::Conditional);
+        assert!(!lines[1].format_safe);
+        assert!(!lines[3].format_safe);
+        assert!(lines[5].format_safe);
     }
 
     #[test]
@@ -499,5 +524,25 @@ mod tests {
         assert!(scan(b"ifdef X\nfoo:\nelse\n\tSHELL=x\nendif\n").is_err());
         assert!(scan(b"ifdef X\nfoo:\nendif\n\tSHELL=x\n").is_err());
         assert!(scan(b"ifdef X\nfoo:\nelse\nbar:\nendif\n\techo SHELL=x\n").is_ok());
+    }
+
+    #[test]
+    fn define_body_uses_literal_keyword_boundaries() {
+        for input in [
+            b"define OUTER\ndefine = value\nendef\nX=1\nendef\nY=2\n".as_slice(),
+            b"define OUTER\nendef#literal\nX=1\nendef\nY=2\n",
+            b"define OUTER\noverride define INNER\nX=1\nendef\nY=2\n",
+        ] {
+            let lines = scan(input).unwrap();
+            for line in &lines[..lines.len() - 1] {
+                assert!(
+                    !line.format_safe,
+                    "{}",
+                    String::from_utf8_lossy(&input[line.range.clone()])
+                );
+            }
+            assert_eq!(lines.last().unwrap().kind, LineKind::Assignment);
+            assert!(lines.last().unwrap().format_safe);
+        }
     }
 }

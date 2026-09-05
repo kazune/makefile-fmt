@@ -131,6 +131,81 @@ fn make_441_assignment_directive_boundaries() {
 }
 
 #[test]
+fn make_441_define_body_boundaries_preserve_the_entire_value() {
+    for body in [
+        "define = value\nendef\nX=1",
+        "endef#literal\nX=1",
+        "override define INNER\nX=1",
+    ] {
+        let input =
+            format!("define OUTER\n{body}\nendef\nY=2\n$(info $(value OUTER))\nall: ; @true\n");
+        let expected = input.replace("Y=2", "Y = 2");
+        let formatted = format(input.as_bytes());
+        assert_eq!(formatted, expected.as_bytes());
+        let before = execute_make(input.as_bytes());
+        let after = execute_make(&formatted);
+        assert!(
+            before.status.success(),
+            "{}",
+            String::from_utf8_lossy(&before.stderr)
+        );
+        assert!(
+            after.status.success(),
+            "{}",
+            String::from_utf8_lossy(&after.stderr)
+        );
+        assert_eq!(before.stdout, format!("{body}\n").as_bytes());
+        assert_eq!(after.stdout, before.stdout);
+        assert_eq!(format(&formatted), formatted);
+    }
+}
+
+#[test]
+fn make_441_conditional_arguments_are_not_assignments() {
+    let input = b"ifeq (a=b,a=b)\nX=1\nelse\nX=2\nendif\nY=3\nall:\n\t@printf '%s\\n' '$(X)'\n";
+    let formatted = format(input);
+    assert_eq!(
+        formatted,
+        b"ifeq (a=b,a=b)\nX=1\nelse\nX=2\nendif\nY = 3\nall:\n\t@printf '%s\\n' '$(X)'\n"
+    );
+    let before = execute_make(input);
+    let after = execute_make(&formatted);
+    assert!(before.status.success() && after.status.success());
+    assert_eq!(before.stdout, b"1\n");
+    assert_eq!(after.stdout, before.stdout);
+    assert_eq!(format(&formatted), formatted);
+}
+
+#[test]
+fn make_441_assignment_operators_preserve_values() {
+    for operator in ["=", ":=", "::=", ":::=", "?=", "+=", "!="] {
+        let input = format!(
+            "X=seed\nX{operator}   {}  \nall:\n\t@printf '%s\\n' '$(X)'\n",
+            if operator == "!=" {
+                "printf value"
+            } else {
+                "value"
+            }
+        );
+        let formatted = format(input.as_bytes());
+        let before = execute_make(input.as_bytes());
+        let after = execute_make(&formatted);
+        assert!(
+            before.status.success(),
+            "{operator}: {}",
+            String::from_utf8_lossy(&before.stderr)
+        );
+        assert!(
+            after.status.success(),
+            "{operator}: {}",
+            String::from_utf8_lossy(&after.stderr)
+        );
+        assert_eq!(after.stdout, before.stdout);
+        assert_eq!(format(&formatted), formatted);
+    }
+}
+
+#[test]
 fn formatting_preserves_make_execution() {
     let cases: &[&[u8]] = &[
         include_bytes!("fixtures/basic.mk"),
