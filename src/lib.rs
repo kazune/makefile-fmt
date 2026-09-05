@@ -1,8 +1,57 @@
 //! Conservative, byte-preserving formatting for the subset documented in MVP.md.
 
+mod recipe;
 pub mod scan;
+mod shfmt;
 
 use std::ops::Range;
+use std::{ffi::OsStr, fmt};
+
+#[derive(Debug)]
+pub enum Error {
+    Unsupported(scan::Unsupported),
+    Tool(String),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unsupported(error) => error.fmt(f),
+            Self::Tool(message) => write!(f, "shfmt: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl Error {
+    pub fn exit_code(&self) -> u8 {
+        match self {
+            Self::Unsupported(_) => 2,
+            Self::Tool(_) => 3,
+        }
+    }
+}
+
+/// Read-only transformation. No edits escape if safety or tool checks fail.
+/// Success does not certify the external assumptions in MVP.md.
+pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, Error> {
+    let lines = scan::scan(source).map_err(Error::Unsupported)?;
+    let shfmt = shfmt::Shfmt::new(shfmt_path.as_ref())?;
+    let mut edits = assignment_edits(source, &lines);
+    for line in &lines {
+        if line.kind == scan::LineKind::Recipe && line.format_safe {
+            if let Some(replacement) = recipe::format(&source[line.range.clone()], &shfmt)? {
+                edits.push(Edit {
+                    range: line.range.clone(),
+                    replacement,
+                });
+            }
+        }
+    }
+    edits.sort_by_key(|edit| edit.range.start);
+    Ok(apply_edits(source, &edits))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Edit {
