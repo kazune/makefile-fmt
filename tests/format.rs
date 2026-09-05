@@ -1,6 +1,7 @@
 use std::{
     io::Write,
     process::{Command, Output, Stdio},
+    sync::Once,
 };
 
 fn format(source: &[u8]) -> Vec<u8> {
@@ -71,6 +72,19 @@ fn crlf_and_final_newline_are_preserved() {
 }
 
 fn execute_make(source: &[u8]) -> Output {
+    static VERSION_CHECK: Once = Once::new();
+    VERSION_CHECK.call_once(|| {
+        let version = Command::new("make")
+            .arg("--version")
+            .output()
+            .expect("GNU Make 4.4.1 must be on PATH");
+        assert!(version.status.success());
+        assert_eq!(
+            version.stdout.split(|&b| b == b'\n').next(),
+            Some(b"GNU Make 4.4.1".as_slice()),
+            "semantic tests require GNU Make 4.4.1 on PATH"
+        );
+    });
     let mut child = Command::new("make")
         .args(["-rR", "-s", "-f", "-", "all"])
         .env_remove("MAKEFLAGS")
@@ -83,6 +97,37 @@ fn execute_make(source: &[u8]) -> Output {
         .unwrap();
     child.stdin.take().unwrap().write_all(source).unwrap();
     child.wait_with_output().unwrap()
+}
+
+#[test]
+fn make_441_assignment_directive_boundaries() {
+    for name in [
+        "include", "-include", "sinclude", "load", "-load", "define", "endef", "ifdef", "ifndef",
+        "ifeq", "ifneq", "else", "endif", "export", "unexport", "override", "private", "undefine",
+        "vpath",
+    ] {
+        for separator in ["=", " = "] {
+            let input = format!("{name}{separator}value\nall:\n\t@printf '%s\\n' '$({name})'\n");
+            let formatted = format(input.as_bytes());
+            let expected = format!("{name} = value\nall:\n\t@printf '%s\\n' '$({name})'\n");
+            assert_eq!(formatted, expected.as_bytes());
+            let before = execute_make(input.as_bytes());
+            let after = execute_make(&formatted);
+            assert!(
+                before.status.success(),
+                "{name}: {}",
+                String::from_utf8_lossy(&before.stderr)
+            );
+            assert!(
+                after.status.success(),
+                "{name}: {}",
+                String::from_utf8_lossy(&after.stderr)
+            );
+            assert_eq!(before.stdout, b"value\n");
+            assert_eq!(after.stdout, before.stdout);
+            assert_eq!(format(&formatted), formatted);
+        }
+    }
 }
 
 #[test]

@@ -33,9 +33,16 @@ recipe 内の shell script の整形は独自実装せず、明示的なセミ�
 
 任意の GNU Make 実行環境に対する意味保存までは保証しない。
 
+`makefile-fmt` v0.1 の semantic-preservation の保証基準は **GNU Make 4.4.1** とする。
+
+それ以前の GNU Make、特に 3.x 系との互換性は保証しない。assignment / directive の判定など、バージョンによって構造認識そのものが変わるケースについて、MVP で複数バージョン対応は行わない。
+
+例えば `include=value` / `include = value` は GNU Make 4.4.1 の変数代入として扱う。formatter 自体が GNU Make のバージョンや parser / evaluator を完全再現することは目標にしない。
+
 MVP の supported subset は以下を前提とする。
 
 * Unix 系環境である。
+* GNU Make 4.4.1 の挙動を基準とする。
 * GNU Make の通常の shell 実行モデルを使用する。
 * Makefile 外部から `SHELL` や `.SHELLFLAGS` 等を変更しない。
 * Makefile 外部から parsing / recipe semantics を変更しない。
@@ -925,8 +932,11 @@ fixture 全件に対して idempotency test を実行する。
 
 最低限以下を用意する。
 
+実行結果を比較するテストは GNU Make 4.4.1 を使用する。テスト開始時にバージョンを確認し、古い GNU Make の結果を保証基準の検証として扱わない。通常の formatter 実行では GNU Make を起動せず、この確認はテスト環境だけで行う。
+
 ```text
 simple assignment
+GNU Make 4.4.1 の assignment / directive 境界（include=value / include = value 等）
 simple rule
 simple recipe
 multi-line shell recipe
@@ -979,6 +989,7 @@ unsupported input
 
 ```text
 GNU Make の完全 parser
+複数バージョンの構造認識への対応・GNU Make の完全なバージョン再現
 Make expression の意味解析
 include graph の解決
 eval 引数の意味解析・評価（明示的な呼び出しの検出は行う）
