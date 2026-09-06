@@ -82,6 +82,22 @@ fn stdout_check_diff_and_write() {
 }
 
 #[test]
+fn diff_keeps_unchanged_lines_as_context() {
+    let workspace = Workspace::new();
+    workspace.write("Makefile", b"A=1\nKEEP = ok\nB=2\n");
+    let output = workspace.run(&["--diff", "Makefile"], None);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"--- Makefile\n+++ Makefile\n@@ -1,3 +1,3 @@\n-A=1\n+A = 1\n KEEP = ok\n-B=2\n+B = 2\n"
+    );
+}
+
+#[test]
 fn unsupported_never_writes_or_outputs_a_partial_result() {
     let workspace = Workspace::new();
     for feature in [
