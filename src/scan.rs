@@ -464,6 +464,9 @@ pub fn scan(source: &[u8]) -> Result<Vec<Line>, Unsupported> {
             // format recipes. Header references may name files/lists, but the
             // supported subset forbids them from generating Make grammar.
             safe_rule = format_safe
+                // A TAB line after an ambiguous header must not establish a
+                // new formatting context from punctuation in shell text.
+                && !raw.starts_with(b"\t")
                 && header_safe == Some(true)
                 && !without_eol(raw).ends_with(b"\\")
                 && after_rule;

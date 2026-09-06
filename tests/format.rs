@@ -449,6 +449,8 @@ fn rule_header_corpus_preserves_make_441_execution_and_header_bytes() {
 fn ambiguous_headers_and_opaque_contexts_preserve_recipes() {
     for block in [
         "$(UNCLOSED: dep\n\techo    untouched\n",
+        "$(UNCLOSED: dep\n\techo target: dep\n\techo    untouched\n",
+        "unknown syntax\n\techo target: dep\n\techo    untouched\n",
         "foo: $(UNCLOSED\n\techo    untouched\n",
         "foo: ${UNCLOSED\n\techo    untouched\n",
         "foo: $(outer ${inner)}\n\techo    untouched\n",
@@ -457,6 +459,7 @@ fn ambiguous_headers_and_opaque_contexts_preserve_recipes() {
         "foo: dep \\\n other ; echo inline\n\techo    untouched\n",
         "foo: X = value\n\techo    untouched\n",
         "$(OBJS): private X := value\n\techo    untouched\n",
+        "$(OBJS): private X := value\n\techo target: dep\n\techo    untouched\n",
         "ifeq (1,1)\n$(OBJS):\n\techo    untouched\nelse\n%.o: %.c\n\techo    untouched\nendif\n",
         "ifdef X\n$(OBJS):\nelse\n%.o: %.c\nendif\n\techo    untouched\n",
         "define FOO\n$(OBJS):\n\techo    untouched\nendef\n",
