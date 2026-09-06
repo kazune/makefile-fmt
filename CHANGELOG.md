@@ -1,11 +1,12 @@
 # Release notes
 
-## Unreleased
+## v0.3.1
+
+Documentation and regression-test release; formatting behavior is unchanged.
 
 * Clarify the v0.1 scope of MVP.md, the unimplemented blank-line cleanup plan,
   recipe whitespace handling, and conservative rejection of escaped-dollar
   eval call patterns such as `$$(eval ...)`. No formatter behavior changes.
-
 * Replace the recipe expansion single-word precondition with syntactic-role
   preservation. Ordinary argument lists, word fragments, and empty expansions
   in argument positions that preserve command validity and syntactic roles
@@ -16,6 +17,10 @@
 * These are input-side assumptions, not new fatal or skip checks. Expansion
   values are not evaluated; formatter implementation and semicolon policy
   remain unchanged. Earlier release notes below describe their original scope.
+* Add GNU Make 4.4.1 regression tests for multiple/empty argument lists, no-op
+  branches, the unchecked command-disappearance boundary, and escaped-dollar
+  eval rejection. Clarify terminal semicolon preservation and link the required
+  shfmt fork from the README.
 
 ## v0.3.0
 
