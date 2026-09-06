@@ -64,6 +64,8 @@ all:
 
 recipe は logical command ごとに処理し、shell の起動単位と先頭の `@`・`-`・`+` を保持します。shfmt は POSIX dialect、TAB indentation、simplify 無効、EditorConfig 無効、explicit semicolons 有効に固定します。
 
+recipe formatting では、shfmt が付与する末尾の semicolon (`;`) を最終出力にも保持し、独自には除去しません。すべての command に一律に `;` を追加するわけではありません。skip された command は原文を保持するため、整形対象と skip 対象で末尾の `;` の有無が混在することも仕様上許容します。
+
 v0.2 以降は `$(...)`、`${...}`、`$@`、`$<`、`$^`、`$?`、`$*`、`$%`、`$$` を左から字句解析します。nested expression や引用符内の Make expansion も、値を評価せずに一時的に mask して元の bytes に復元します。例えば次の recipe も整形対象です。
 
 ```make
