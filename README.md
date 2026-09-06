@@ -5,6 +5,8 @@ v0.2 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含
 
 安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。基本の保証前提は [MVP.md](MVP.md)、v0.2 の Make expansion masking は [MVP-0.2.md](MVP-0.2.md) を参照してください。
 
+バージョンごとの変更と既知の制限は [リリースノート](CHANGELOG.md) を参照してください。
+
 ## ビルドと使用方法
 
 Rust / Cargo と、`--explicit-semicolons` に対応した fork 版 `shfmt` が必要です。開発時の検証には Rust 1.96.0 を使用しています。`shfmt` を PATH に置いてください。
