@@ -113,13 +113,13 @@ Unix 系環境と GNU Make 4.4.1 の通常の shell 実行モデルを前提に�
 
 recipe 内の Make expansion は単一の word または word fragment を生成することを前提とします。shell grammar、複数 word、operator を生成するケースは保証対象外であり、評価・検出しません。`$(CFLAGS)` 等もこの前提を満たす値が対象です。
 
-Make expansion が command 全体を空にするケースも保証対象外です。formatter は expansion の値を評価しないため、command position の expansion が空になると、内部 placeholder の復元後に `;` だけの shell fragment となり、shell の syntax error を起こす場合があります。空のときに何もしない recipe には、expansion だけを書かず、例えば次のように no-op を明示してください。
+Make expansion が command 全体を空にするケースも保証対象外です。formatter は expansion の値を評価しないため、command position の expansion が空になると、内部 placeholder の復元後に `;` だけの shell fragment となり、shell の syntax error を起こす場合があります。command 全体を Make expansion で生成する場合は、空文字列ではなく有効な no-op command に展開されるようにしてください。例えば `$(if ...)` の空側で `:` を生成します。
 
 ```make
-	: nothing to do; $(CMD)
+	$(if $(CMD),$(CMD),:)
 ```
 
-この例では `$(CMD)` が空でも `: nothing to do;` が有効な shell command として残ります。`$(CMD)` の値が shell grammar、複数 word、operator を生成しないという既存の supported subset の前提は変わりません。
+この例では `$(CMD)` が空なら recipe は `:` に展開されるため、formatter が末尾に `;` を付けても有効な shell command のままです。`$(CMD)` の値が shell grammar、複数 word、operator を生成しないという既存の supported subset の前提は変わりません。
 
 header 内の Make expansion は target / prerequisite の名前やリストを生成する用途が対象です。rule / assignment の区別、inline recipe の有無、recipe の所属、その他 header の構造を動的に生成・変更しないことを前提とし、その値は評価・検出しません。
 

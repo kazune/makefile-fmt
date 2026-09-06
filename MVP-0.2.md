@@ -150,14 +150,13 @@ Make expansion が shell grammar、複数 word、operator 等を生成するケ�
 
 さらに、Make expansion が command 全体を空にするケースは supported subset 外とする。formatter は Make expansion の値を評価しないため、例えば command position の `$(CMD)` が空に展開されると、整形後に内部 placeholder が消えて `;` だけの shell fragment になり、shell の syntax error を起こすことがある。この条件は formatter の成功だけでは検出・証明しない。
 
-空のときに何もしない recipe にしたい場合は、空になり得る expansion だけに依存せず、shell の no-op を明示的に書く。
+command 全体を Make expansion で生成する場合は、空文字列ではなく有効な no-op command に展開されるようにする。例えば `$(if ...)` を使う場合は、空側で `:` を生成する。
 
 ```make
-# `$(CMD)` が空でも、recipe 全体は有効な shell command のままにする
-	: nothing to do; $(CMD)
+	$(if $(CMD),$(CMD),:)
 ```
 
-単に command position の expansion が空になる書き方や、空展開の後ろに `;` だけを残す書き方は避ける。`$(CMD)` が shell grammar、複数 word、operator を生成しないという既存の前提も引き続き適用する。
+この例では `$(CMD)` が空なら recipe は `:` に展開されるため、formatter が末尾に `;` を付けても有効な shell command のままになる。単に command position の expansion が空になる書き方や、空展開の後ろに `;` だけを残す書き方は避ける。`$(CMD)` が shell grammar、複数 word、operator を生成しないという既存の前提も引き続き適用する。
 
 ## Skip
 
