@@ -54,6 +54,27 @@ fn fixtures_and_idempotency() {
 }
 
 #[test]
+fn command_position_expansion_is_masked_only_under_format_safe_rules() {
+    let command = "\t$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)";
+    for (header, format_safe) in [
+        ("foo.o: foo.c", true),
+        ("$(OUTDIR)/foo.o: foo.c", false),
+        ("foo.o: $(SRC)", false),
+        ("%.o: %.c", false),
+    ] {
+        let input = format!("{header}\n{command}\n\nclean:\n\trm -rf $(OUTDIR)\n");
+        let lines = makefile_fmt::scan::scan(input.as_bytes()).unwrap();
+        assert_eq!(lines[1].kind, makefile_fmt::scan::LineKind::Recipe);
+        assert_eq!(lines[1].format_safe, format_safe, "{header}");
+        let suffix = if format_safe { ";" } else { "" };
+        let expected = format!("{header}\n{command}{suffix}\n\nclean:\n\trm -rf $(OUTDIR);\n");
+        let output = format(input.as_bytes());
+        assert_eq!(output, expected.as_bytes(), "{header}");
+        assert_eq!(format(&output), output, "not idempotent: {header}");
+    }
+}
+
+#[test]
 fn crlf_and_final_newline_are_preserved() {
     let input = include_str!("fixtures/basic.mk").replace('\n', "\r\n");
     let expected = include_str!("fixtures/basic.expected.mk").replace('\n', "\r\n");
