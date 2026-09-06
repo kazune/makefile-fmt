@@ -128,3 +128,9 @@ v0.3 では以下は行わない。
 * recipe が実際に formatting される
 * idempotent
 * GNU Make 4.4.1 で整形前後の実行結果が一致
+
+## 初期実装の保守的な判定
+
+既存の fatal scan と、recipe formatting を許可するための厳格な header 構造検査を分離する。後者では未閉鎖・曖昧な nested expression を拒否し、式と comment の外側に単一の `:` があることを要求する。
+
+expression 外の escape、および `=`・`&` を含む header は comment 内を除き保守的に skip する。escaped filename や `=` を含む literal prerequisite の対応は必須範囲に含めない。header continuation は既存の logical line 処理で折り畳んだ構造が検査を通る場合に認め、元の physical header は変更しない。末尾で途切れた continuation は整形の許可に使わない。

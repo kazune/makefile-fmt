@@ -1,5 +1,19 @@
 # Release notes
 
+## v0.3.0 (unreleased)
+
+* Separate rule-header preservation from recipe-formatting eligibility. Recipes
+  under structurally recognized single-colon rules can now be formatted with
+  variable-expanded targets/prerequisites, `%` patterns, and `|` prerequisites.
+* Keep headers byte-for-byte unchanged, including supported continuations.
+  Validate expression boundaries before granting recipe-formatting permission.
+* Retain the v0.2 recipe masking, fatal checks, and recipe-level skip rules.
+  Double-colon, grouped, static pattern, inline, and target-specific assignment
+  headers still do not enable recipe formatting. Ambiguous or escaped headers
+  remain conservative.
+* Header expansions must only generate names or lists, not change Make header
+  structure. Values are not evaluated. GNU Make 4.4.1 remains the baseline.
+
 ## v0.2.0
 
 ### Make expansion masking

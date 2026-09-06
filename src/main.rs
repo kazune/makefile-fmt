@@ -10,7 +10,7 @@ use std::{
 };
 
 const USAGE: &str = "Usage: makefile-fmt [-w | --check | --diff] [--] FILE\n\n\
-Format a GNU Makefile using the subset in MVP.md and MVP-0.2.md.\n\
+Format a GNU Makefile using the subset in MVP.md, MVP-0.2.md and MVP-0.3.md.\n\
 Requires forked shfmt with --explicit-semicolons on PATH.\n\n\
   -w         Replace FILE after all checks succeed\n\
   --check    Exit 1 if formatting would change FILE\n\
