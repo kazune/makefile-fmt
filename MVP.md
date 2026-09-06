@@ -1,4 +1,8 @@
-# makefile-fmt MVP
+# makefile-fmt MVP（v0.1 履歴仕様）
+
+この文書は v0.1 の設計・仕様を記録する履歴文書であり、現行版の全機能を説明するものではない。共通の safety model は引き継ぐが、recipe 内の `$` による一律 skip など、後続版で置き換えられた規則を含む。
+
+現行の整形範囲と制約は [README.md](README.md) を参照する。Make expansion masking と recipe expansion の保証条件は [MVP-0.2.md](MVP-0.2.md)、rule header と recipe の所属判定は [MVP-0.3.md](MVP-0.3.md) に記載する。未実装の将来案は、その節で明示する。
 
 ## 目的
 
@@ -335,6 +339,8 @@ ${eval ...}
 `eval` は、Makefile 構文を動的に導入できる明示的な escape hatch として禁止する。
 
 通常の structural context と独立した検査を行い、明示的な呼び出しは出現 context に関係なく fatal unsupported とする。comment、recipe、define body も例外にしない。
+
+実装の検出範囲は、実際の Make `eval` 呼び出しより保守的である。入力 bytes 中の `$(eval ...)` / `${eval ...}` という呼び出し形を検査し、この検査では `$$` を字句解析しない。そのため `$$(eval echo hi)` や `$${eval ...}` も内部の呼び出し形に一致し、exit 2 の fatal unsupported となる。`$$(eval echo hi)` は Make の `eval` 呼び出しではなく shell 側の command substitution を表せるが、それも意図的に拒否する範囲に含める。単に `eval` という文字列が含まれるだけで一律に拒否するわけではない。この保守的な挙動は現行版にも引き継がれる。
 
 ```make
 all:
@@ -810,6 +816,8 @@ scanner が recipe boundary を確定できない
 
 # Make Expansion Masking
 
+以下は v0.1 時点の制限と当時の将来計画である。v0.2 以降は [MVP-0.2.md](MVP-0.2.md) の masking が実装済みであり、recipe 内の `$` を一律 skip する規則は適用しない。
+
 最終的には recipe 内の、
 
 ```make
@@ -843,9 +851,11 @@ recipe command に `$` が存在する
 
 ---
 
-# Blank Lines
+# Blank Lines（未実装の将来案）
 
-安全な通常領域に限り、連続空行を一定数までに制限できる。
+連続空行の整理は v0.1 から現行版まで未実装であり、Makefile 全体に一律の空行整理を行う処理はない。以下は将来案であって、現行版の動作や完成条件ではない。なお、整形対象 recipe の内部レイアウトは shfmt に従う。
+
+将来追加する場合は、安全な通常領域に限り、連続空行を一定数までに制限することを検討する。
 
 例:
 

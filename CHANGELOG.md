@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Clarify the v0.1 scope of MVP.md, the unimplemented blank-line cleanup plan,
+  recipe whitespace handling, and conservative rejection of escaped-dollar
+  eval call patterns such as `$$(eval ...)`. No formatter behavior changes.
+
 * Replace the recipe expansion single-word precondition with syntactic-role
   preservation. Ordinary argument lists, word fragments, and empty expansions
   in argument positions that preserve command validity and syntactic roles

@@ -290,6 +290,35 @@ fn parse_failure_preserves_only_that_command() {
 }
 
 #[test]
+fn escaped_eval_call_patterns_are_conservatively_fatal() {
+    let shell_eval = b"all:\n\t@printf '%s\\n' \"$$(eval echo hi)\"\n";
+    // GNU Make passes this to the shell as command substitution, not Make
+    // eval. The formatter nevertheless rejects the raw eval call pattern.
+    let execution = execute_make(shell_eval);
+    assert!(
+        execution.status.success(),
+        "{}",
+        String::from_utf8_lossy(&execution.stderr)
+    );
+    assert_eq!(execution.stdout, b"hi\n");
+    for source in [
+        shell_eval.as_slice(),
+        b"# $$(eval echo hi)\n",
+        b"define FOO\n$${eval text}\nendef\n",
+        b"all:\n\t$$(eval echo hi)\n",
+        b"all:\n\t$$$$(eval echo hi)\n",
+    ] {
+        // Fatal detection must precede both tool checks and dollar masking.
+        let error = makefile_fmt::format(source, "/nonexistent/shfmt").unwrap_err();
+        assert_eq!(error.exit_code(), 2);
+        assert!(
+            matches!(error, makefile_fmt::Error::Unsupported(ref unsupported) if unsupported.feature == "eval")
+        );
+    }
+    assert!(makefile_fmt::scan::scan(b"X = eval\nall:\n\techo evaluate $$(evaluate hi)\n").is_ok());
+}
+
+#[test]
 fn unsupported_precedes_tool_configuration_checks() {
     let error =
         makefile_fmt::format(b"X=1\n.ONESHELL:\n", "/nonexistent/makefile-fmt-shfmt").unwrap_err();

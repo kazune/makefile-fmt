@@ -105,7 +105,7 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 
 初期実装では、複数行の Make expression と、由来確認用入力を安全に整形できない `$$(command)` 等も保持します。
 
-単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。RHS の内容と末尾空白は保持し、空行数や全行の trailing whitespace は変更しません。未変更領域の bytes、CRLF、末尾改行の有無も保持します。
+単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。assignment RHS の内容・末尾空白と、未変更領域の bytes（trailing whitespace を含む）は保持します。Makefile 全体に一律の空行整理や trailing whitespace 削除を行う処理はありません。ただし、整形対象 recipe の trailing whitespace や内部レイアウトは shfmt の規則に従って変更されることがあります。CRLF と末尾改行の有無は保持します。
 
 ## 安全性の境界
 
@@ -131,6 +131,8 @@ header 内の Make expansion は target / prerequisite の名前やリストを�
 * `include` / `-include` / `sinclude` / `load` / `-load`。
 * 危険な特殊名そのものを RHS に持つ単純な literal alias。
 * 明示的な `$(eval ...)` / `${eval ...}`。これはコメント・recipe・define 本文でも拒否します。
+
+`eval` の検査は実際の Make 呼び出しの判定より保守的です。入力 bytes 中の呼び出し形を検査し、ここでは `$$` を字句解析しないため、`$$(eval echo hi)` や `$${eval ...}` も fatal（exit 2）になります。前者は Make の `eval` 呼び出しではなく shell の command substitution を表せますが、それも拒否対象です。単に `eval` という文字列を含むだけで一律に拒否するわけではありません。この検査は masking や recipe の skip 判定より先に行います。
 
 通常の fatal 検査ではコメント・recipe・define 本文を除外し、conditional の両 branch を検査します。`$(OBJS): common.h` のような通常の variable-expanded target は許可します。
 

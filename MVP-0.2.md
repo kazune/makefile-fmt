@@ -178,6 +178,8 @@ heredoc、shell comment、backtick、unsafe quote、inline recipe 等の既存 s
 
 明示的な `$(eval ...)` / `${eval ...}` は masking より前に検出し、出現 context に関係なく従来どおり file-level fatal とする。
 
+この検査は実際の Make 呼び出しより保守的な、入力 bytes 中の呼び出し形の検出である。`$$` を1組とする Make-dollar lexing より前に行い、`$$(eval echo hi)` や `$${eval ...}` に含まれる呼び出し形も fatal（exit 2）とする。前者が Make の `eval` ではなく shell の command substitution を表す場合も例外にしない。単なる `eval` という文字列の出現すべてを拒否するものではない。既存の fatal scan の挙動を維持し、escaped dollar による除外は追加しない。
+
 優先順位は以下とする。
 
 ```text
