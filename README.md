@@ -1,9 +1,9 @@
 # makefile-fmt
 
 GNU Makefile の意味を変えないことを優先した、保守的な formatter です。
-v0.1 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
+v0.2 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
 
-安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。保証の前提と検出対象の詳細は [MVP.md](MVP.md) を参照してください。
+安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。基本の保証前提は [MVP.md](MVP.md)、v0.2 の Make expansion masking は [MVP-0.2.md](MVP-0.2.md) を参照してください。
 
 ## ビルドと使用方法
 
@@ -62,21 +62,38 @@ all:
 
 recipe は logical command ごとに処理し、shell の起動単位と先頭の `@`・`-`・`+` を保持します。shfmt は POSIX dialect、TAB indentation、simplify 無効、EditorConfig 無効、explicit semicolons 有効に固定します。
 
-初期版は以下を原文のまま保持します。
+v0.2 では `$(...)`、`${...}`、`$@`、`$<`、`$^`、`$?`、`$*`、`$%`、`$$` を左から字句解析します。nested expression や引用符内の Make expansion も、値を評価せずに一時的に mask して元の bytes に復元します。例えば次の recipe も整形対象です。
+
+```make
+foo.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+	echo "$$HOME"
+	echo "$(NAME)"
+```
+
+`$$` は shell `$` として shfmt に渡し、別途 placeholder を使った整形結果と照合して由来を確認します。shfmt 出力の `$` を一律に二重化することはありません。`$$$$` は2組として扱い、未対応の末尾 `$` が残る `$$$` は command 全体を保持します。
+
+以下は原文のまま保持します。
 
 * `define` 本文、未知の構文、conditional 内の整形対象。
 * 複雑な rule、inline recipe、およびその rule 配下の recipe。
-* `$`、backtick、heredoc、shell comment を含む command。
+* `$|`、`$0`、`$x` 等の未対応 `$` 構文や、閉じ括弧の欠けた Make expression を含む command。
+* backtick、heredoc、shell comment を含む command。
 * 引用符の状態や改行の再構築を安全に判断できない command。
 * shfmt が parse できない command。
+* placeholder の欠落・重複・変形や、`$$` の由来を確認できない command。
 
 `#` や `<<` を含む command は、引用符内にある場合も保守的に保持します。改行コードが混在する logical command も保持します。
+
+初期実装では、複数行の Make expression と、由来確認用入力を安全に整形できない `$$(command)` 等も保持します。
 
 単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。RHS の内容と末尾空白は保持し、空行数や全行の trailing whitespace は変更しません。未変更領域の bytes、CRLF、末尾改行の有無も保持します。
 
 ## 安全性の境界
 
 Unix 系環境と GNU Make 4.4.1 の通常の shell 実行モデルを前提にします。外部からの `SHELL` / `.SHELLFLAGS` の変更や、特殊名・`eval` 呼び出しの動的生成は保証対象外です。
+
+recipe 内の Make expansion は単一の word または word fragment を生成することを前提とします。shell grammar、複数 word、operator を生成するケースは保証対象外であり、評価・検出しません。`$(CFLAGS)` 等もこの前提を満たす値が対象です。
 
 次の構文はファイル全体を fatal unsupported とします。
 
@@ -104,4 +121,4 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-fixture の期待値・冪等性、GNU Make での整形前後の実行結果、assignment / directive 境界、define 本文の保持、CRLF、CLI の終了コードと no-write 保証を検証します。
+fixture の期待値・冪等性、GNU Make での整形前後の実行結果、assignment / directive 境界、define 本文の保持、CRLF、CLI の終了コードと no-write 保証を検証します。v0.2 では dollar の字句解析、placeholder 衝突・欠落・重複・変形、quoted context、`$$` の復元も検証します。

@@ -183,6 +183,16 @@ fatal check
 * placeholder が元入力と衝突しない
 * `$` の Make / shell 境界を壊さない
 
+## 初期実装の検証方法
+
+Make expression を通常の word 形式の placeholder にし、`$$` を実際の shell `$` に変換した入力を shfmt に渡す。
+
+`$$` がある場合は、その `$` も個別の placeholder にした由来確認用の入力を別途整形する。全 placeholder がちょうど1回残ることを確認し、由来確認用出力の dollar placeholder だけを `$` に戻した結果が実際の shell 整形結果と byte-for-byte で一致することを要求する。その一致を確認した後で、記録した元の Make expression と `$$` を復元する。
+
+由来確認用の入力が parse できない場合や出力が一致しない場合は command 全体を保持する。例えば `$$(command)` はこの初期実装では skip する。複数行の Make expression も、改行や TAB を含む元の bytes を確実に復元するため、初期実装では command 単位で保持する。
+
+Make continuation として再構築した結果を再度同じ処理に通し、復元済みの整形結果が一致することも確認する。
+
 ## 最初に通したい例
 
 ```make

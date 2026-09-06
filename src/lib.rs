@@ -1,4 +1,4 @@
-//! Conservative, byte-preserving formatting for the subset documented in MVP.md.
+//! Conservative formatting for the subset in MVP.md and MVP-0.2.md.
 
 mod masking;
 mod recipe;
