@@ -119,44 +119,50 @@ nested expression も「中身を解釈せず、一つの opaque Make expression
 
 ## Safety model
 
-Make expansion の値そのものは評価しない。
+Make expansion の値そのものは評価しない。保証条件は、当初の「単一の word または word fragment」という制約から、以下の **syntactic-role preservation（構文上の役割の維持）** に置き換える。
 
-supported subset では、
+* Make expansion は、通常の引数列や word fragment を生成してよい。
+* placeholder で認識した shell 構造に対し、Make expansion 前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を変えてはならない。
+* 引数位置での空展開は、その shell command の成立と構文上の役割を維持する場合に限り許可する。
+* command position の expansion、または shell list 内の独立した command に相当する expansion が空になり、その command 自体が消滅するケースは保証対象外とする。
 
-> recipe 内の Make expansion は shell grammar や複数 word、operator を動的生成せず、単一の word または word fragment として展開される
+通常の argument word 数が変わること自体は禁止しない。placeholder を含む AST と Make 展開後の AST が word 数まで完全に一致することを要求するのではなく、構文上の役割が維持されることを要求する。
 
-ことを前提とする。
-
-例えば、
-
-```make
-$(CC) $(CFLAGS)
-```
-
-は対象。
-
-一方、
+例えば、次は対象となる。
 
 ```make
-CMD = if foo; then ...
-	$(CMD)
+CFLAGS = -O2 -Wall
+foo.o: foo.c
+	$(CC) $(CFLAGS) -c $<
 ```
 
-のように Make expansion 自体が shell 構文を生成するケースの安全性までは保証しない。
+`CFLAGS =` のような空の引数列も、`$(CC)` が有効な command 名を生成し、command が成立する場合には対象となる。
 
-formatter の成功は、この前提を満たしていることの証明ではない。
+一方、expansion が `;`、`&& echo done`、`>out`、未閉鎖の quote 等を生成する場合や、command position で reserved word を導入する場合など、構文上の役割を変えるケースは保証対象外とする。
 
-Make expansion が shell grammar、複数 word、operator 等を生成するケースは supported subset 外とし、評価・検出しない。例えば `$(CFLAGS)` についても、この前提を満たす値を保証対象とする。
+### Command disappearance と no-op
 
-さらに、Make expansion が command 全体を空にするケースは supported subset 外とする。formatter は Make expansion の値を評価しないため、例えば command position の `$(CMD)` が空に展開されると、整形後に内部 placeholder が消えて `;` だけの shell fragment になり、shell の syntax error を起こすことがある。この条件は formatter の成功だけでは検出・証明しない。
-
-command 全体を Make expansion で生成する場合は、空文字列ではなく有効な no-op command に展開されるようにする。例えば `$(if ...)` を使う場合は、空側で `:` を生成する。
+空展開に関する制約は recipe 全体だけでなく、compound command / shell list 内の個々の command にも適用する。
 
 ```make
-	$(if $(CMD),$(CMD),:)
+OPTIONAL =
+all:
+	(echo ok; $(OPTIONAL))
 ```
 
-この例では `$(CMD)` が空なら recipe は `:` に展開されるため、formatter が末尾に `;` を付けても有効な shell command のままになる。単に command position の expansion が空になる書き方や、空展開の後ろに `;` だけを残す書き方は避ける。`$(CMD)` が shell grammar、複数 word、operator を生成しないという既存の前提も引き続き適用する。
+この例は保証対象外である。元は `(echo ok; )` として成立するが、formatter が `$(OPTIONAL)` に相当する command の末尾に `;` を付けると、Make 展開後は `;` だけの空 command が残り syntax error になり得る。
+
+何もしない branch では、空文字列ではなく有効な no-op command を生成する。
+
+```make
+	$(if $(X),echo ok,:)
+	$(if $(X),echo ok,: nothing to do)
+	$(if $(CMD),$(CMD),: nothing to do)
+```
+
+`: nothing to do` は command `:` と通常の引数列であり、今回の制約では許可される。`$(CMD)` の非空側についても、構文上の役割を維持する前提は引き続き適用する。
+
+formatter はこれらの値や条件を評価・検出しない。入力側が満たすべき supported subset の前提であり、違反を静的な fatal unsupported / skip として検出する仕様ではない。formatter が成功しても、この前提を満たすことは証明されない。masking、fatal / skip 判定、terminal semicolon の保持は変更しない。
 
 ## Skip
 

@@ -1,5 +1,18 @@
 # Release notes
 
+## Unreleased
+
+* Replace the recipe expansion single-word precondition with syntactic-role
+  preservation. Ordinary argument lists, word fragments, and empty expansions
+  in argument positions that preserve command validity and syntactic roles
+  are supported.
+* Exclude expansion-driven disappearance of individual commands, including
+  elements of compound commands and shell lists, not just entire recipes.
+  Use a valid no-op such as `: nothing to do` for an inactive branch.
+* These are input-side assumptions, not new fatal or skip checks. Expansion
+  values are not evaluated; formatter implementation and semicolon policy
+  remain unchanged. Earlier release notes below describe their original scope.
+
 ## v0.3.0
 
 * Separate rule-header preservation from recipe-formatting eligibility. Recipes

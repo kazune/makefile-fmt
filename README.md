@@ -111,15 +111,16 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 
 Unix 系環境と GNU Make 4.4.1 の通常の shell 実行モデルを前提にします。外部からの `SHELL` / `.SHELLFLAGS` の変更や、特殊名・`eval` 呼び出しの動的生成は保証対象外です。
 
-recipe 内の Make expansion は単一の word または word fragment を生成することを前提とします。shell grammar、複数 word、operator を生成するケースは保証対象外であり、評価・検出しません。`$(CFLAGS)` 等もこの前提を満たす値が対象です。
+recipe 内の Make expansion は通常の引数列や word fragment を生成して構いません。ただし、placeholder で認識した shell 構造に対し、展開前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を維持することが前提です。`$(CFLAGS)` が `-O2 -Wall` のような複数引数を生成する場合や、空でも shell command が成立する場合は対象です。これは当初の「単一 word」制約を置き換える保証条件であり、word 数まで同一の AST を要求するものではありません。
 
-Make expansion が command 全体を空にするケースも保証対象外です。formatter は expansion の値を評価しないため、command position の expansion が空になると、内部 placeholder の復元後に `;` だけの shell fragment となり、shell の syntax error を起こす場合があります。command 全体を Make expansion で生成する場合は、空文字列ではなく有効な no-op command に展開されるようにしてください。例えば `$(if ...)` の空側で `:` を生成します。
+command position の expansion、または shell list 内の独立した command に相当する expansion が空になり、その command 自体が消滅するケースは保証対象外です。recipe 全体だけでなく、例えば `(echo ok; $(OPTIONAL))` の `$(OPTIONAL)` が空になる場合も該当します。formatter が付与した `;` だけが残り、shell の syntax error を起こし得ます。何もしない branch では、空文字列ではなく有効な no-op command を生成してください。
 
 ```make
-	$(if $(CMD),$(CMD),:)
+	$(if $(X),echo ok,: nothing to do)
+	$(if $(CMD),$(CMD),: nothing to do)
 ```
 
-この例では `$(CMD)` が空なら recipe は `:` に展開されるため、formatter が末尾に `;` を付けても有効な shell command のままです。`$(CMD)` の値が shell grammar、複数 word、operator を生成しないという既存の supported subset の前提は変わりません。
+`: nothing to do` は command `:` と通常の引数列なので許可されます。非空側も含め、各 branch は構文上の役割を維持する必要があります。formatter は expansion の値を評価・検出しません。これらは入力側の前提であり、違反を fatal / skip として検出する仕様ではありません。実装や terminal semicolon の保持方針は変更しません。
 
 header 内の Make expansion は target / prerequisite の名前やリストを生成する用途が対象です。rule / assignment の区別、inline recipe の有無、recipe の所属、その他 header の構造を動的に生成・変更しないことを前提とし、その値は評価・検出しません。
 
