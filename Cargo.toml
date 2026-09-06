@@ -2,5 +2,9 @@
 name = "makefile-fmt"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/kazune/makefile-fmt"
+description = "A conservative formatter for GNU Makefiles"
+readme = "README.md"
 
 [dependencies]
