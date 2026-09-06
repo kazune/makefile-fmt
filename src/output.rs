@@ -218,11 +218,11 @@ pub fn diff(path: &Path, before: &[u8], after: &[u8]) -> Vec<u8> {
         }
         let start = index.saturating_sub(3);
         let end = (index + 4).min(changes.len());
-        if let Some((_, current_end)) = hunks.last_mut() {
-            if start <= *current_end {
-                *current_end = (*current_end).max(end);
-                continue;
-            }
+        if let Some((_, current_end)) = hunks.last_mut()
+            && start <= *current_end
+        {
+            *current_end = (*current_end).max(end);
+            continue;
         }
         hunks.push((start, end));
     }
