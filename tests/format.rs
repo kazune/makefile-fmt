@@ -336,6 +336,116 @@ fn masking_preserves_make_execution_and_shell_dollars() {
 }
 
 #[test]
+fn argument_lists_and_empty_arguments_preserve_syntactic_roles() {
+    for (flags, expected_args) in [
+        (
+            "-O2 -Wall",
+            "<-O2>\n<-Wall>\n<-c>\n<__makefmt_role_input.c>\n",
+        ),
+        ("", "<-c>\n<__makefmt_role_input.c>\n"),
+    ] {
+        // Keep the compile-shaped invocation, but print each argument instead
+        // of invoking a compiler or writing an object file. The function is
+        // literal shell syntax; neither CC nor CFLAGS generates that syntax.
+        let input = format!(
+            "CC = cc_probe\nCFLAGS = {flags}\n.PHONY: all __makefmt_role_input.c\nall: __makefmt_role_input.c\n\t@cc_probe() {{ printf '<%s>\\n' \"$$@\"; }}; $(CC) $(CFLAGS) -c $<\n__makefmt_role_input.c:\n"
+        );
+        let formatted = format(input.as_bytes());
+        assert_ne!(formatted, input.as_bytes());
+        assert!(String::from_utf8_lossy(&formatted).contains("$(CC) $(CFLAGS) -c $<;"));
+        assert_eq!(format(&formatted), formatted);
+        let before = execute_make(input.as_bytes());
+        let after = execute_make(&formatted);
+        assert!(
+            before.status.success(),
+            "{}",
+            String::from_utf8_lossy(&before.stderr)
+        );
+        assert!(
+            after.status.success(),
+            "{}",
+            String::from_utf8_lossy(&after.stderr)
+        );
+        assert_eq!(before.stdout, expected_args.as_bytes());
+        assert_eq!(after.stdout, before.stdout);
+        assert_eq!(after.stderr, before.stderr);
+    }
+}
+
+#[test]
+fn noop_expansion_branches_preserve_make_execution() {
+    for (variable, active_value, expression) in [
+        ("X", "1", "$(if $(X),echo ok,:)"),
+        ("X", "1", "$(if $(X),echo ok,: nothing to do)"),
+        ("CMD", "echo ok", "$(if $(CMD),$(CMD),: nothing to do)"),
+    ] {
+        for value in ["", active_value] {
+            let input = format!("{variable} = {value}\nall:\n\t@{expression}\n");
+            let formatted = format(input.as_bytes());
+            assert!(formatted.ends_with(format!("\t@{expression};\n").as_bytes()));
+            assert_eq!(format(&formatted), formatted);
+            let before = execute_make(input.as_bytes());
+            let after = execute_make(&formatted);
+            assert!(
+                before.status.success(),
+                "{}",
+                String::from_utf8_lossy(&before.stderr)
+            );
+            assert!(
+                after.status.success(),
+                "{}",
+                String::from_utf8_lossy(&after.stderr)
+            );
+            assert_eq!(
+                before.stdout,
+                if value.is_empty() {
+                    b"".as_slice()
+                } else {
+                    b"ok\n"
+                }
+            );
+            assert_eq!(after.stdout, before.stdout);
+            assert_eq!(after.stderr, before.stderr);
+        }
+    }
+}
+
+#[test]
+fn command_disappearance_is_an_unchecked_input_precondition() {
+    for value in ["", ":", ": nothing to do", "echo optional"] {
+        let input = format!("OPTIONAL = {value}\nall:\n\t@(echo ok; $(OPTIONAL))\n");
+        // This test documents the guarantee boundary, not a new fatal/skip
+        // requirement. The formatter does not inspect OPTIONAL's value.
+        let formatted = format(input.as_bytes());
+        assert_ne!(formatted, input.as_bytes());
+        assert!(String::from_utf8_lossy(&formatted).contains("$(OPTIONAL);"));
+        assert_eq!(format(&formatted), formatted);
+        let before = execute_make(input.as_bytes());
+        let after = execute_make(&formatted);
+        assert!(
+            before.status.success(),
+            "{}",
+            String::from_utf8_lossy(&before.stderr)
+        );
+        if value.is_empty() {
+            // Removing this list element leaves a bare semicolon in the
+            // subshell. Successful formatting cannot certify subset membership.
+            assert_eq!(before.stdout, b"ok\n");
+            assert!(!after.status.success());
+            assert!(!after.stderr.is_empty());
+        } else {
+            assert!(
+                after.status.success(),
+                "{}",
+                String::from_utf8_lossy(&after.stderr)
+            );
+            assert_eq!(after.stdout, before.stdout);
+            assert_eq!(after.stderr, before.stderr);
+        }
+    }
+}
+
+#[test]
 fn masking_crlf_and_final_newline_are_preserved() {
     let input = include_str!("fixtures/masking.mk").replace('\n', "\r\n");
     let expected = include_str!("fixtures/masking.expected.mk").replace('\n', "\r\n");
