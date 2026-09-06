@@ -121,6 +121,44 @@ fn masking_works_through_check_diff_and_write() {
 }
 
 #[test]
+fn complex_headers_work_through_stdout_check_diff_and_write() {
+    let workspace = Workspace::new();
+    let original = include_bytes!("fixtures/headers.mk");
+    let expected = include_bytes!("fixtures/headers.expected.mk");
+    let input = workspace.write("Makefile", original);
+    let stdout = workspace.run(&["Makefile"], None);
+    assert!(stdout.status.success());
+    assert_eq!(stdout.stdout, expected);
+    assert_eq!(
+        workspace.run(&["--check", "Makefile"], None).status.code(),
+        Some(1)
+    );
+    let diff = workspace.run(&["--diff", "Makefile"], None);
+    assert!(diff.status.success());
+    assert_eq!(diff.stdout, b"--- Makefile\n+++ Makefile\n@@ -1,8 +1,8 @@\n $(OUTDIR):\n-\tmkdir -p $(OUTDIR)\n+\tmkdir -p $(OUTDIR);\n \n $(OUTDIR)/%: %.c | $(OUTDIR)\n-\t$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)\n+\t$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS);\n \n clean:\n-\trm -rf $(OUTDIR)\n+\trm -rf $(OUTDIR);\n");
+    assert_eq!(fs::read(&input).unwrap(), original);
+    let write = workspace.run(&["-w", "Makefile"], None);
+    assert!(write.status.success());
+    assert!(write.stdout.is_empty());
+    assert_eq!(fs::read(&input).unwrap(), expected);
+    assert_eq!(
+        workspace.run(&["--check", "Makefile"], None).status.code(),
+        Some(0)
+    );
+    let diff = workspace.run(&["--diff", "Makefile"], None);
+    assert!(diff.status.success());
+    assert!(diff.stdout.is_empty());
+
+    // A fatal later in the file still discards all newly eligible recipe edits.
+    let unsupported = [original.as_slice(), b"# $(eval .ONESHELL:)\n"].concat();
+    workspace.write("Makefile", &unsupported);
+    let write = workspace.run(&["-w", "Makefile"], None);
+    assert_eq!(write.status.code(), Some(2));
+    assert!(write.stdout.is_empty());
+    assert_eq!(fs::read(&input).unwrap(), unsupported);
+}
+
+#[test]
 fn corrupt_placeholders_skip_only_the_command() {
     let workspace = Workspace::new();
     for corrupt in [
