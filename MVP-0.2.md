@@ -148,6 +148,17 @@ formatter の成功は、この前提を満たしていることの証明では�
 
 Make expansion が shell grammar、複数 word、operator 等を生成するケースは supported subset 外とし、評価・検出しない。例えば `$(CFLAGS)` についても、この前提を満たす値を保証対象とする。
 
+さらに、Make expansion が command 全体を空にするケースは supported subset 外とする。formatter は Make expansion の値を評価しないため、例えば command position の `$(CMD)` が空に展開されると、整形後に内部 placeholder が消えて `;` だけの shell fragment になり、shell の syntax error を起こすことがある。この条件は formatter の成功だけでは検出・証明しない。
+
+空のときに何もしない recipe にしたい場合は、空になり得る expansion だけに依存せず、shell の no-op を明示的に書く。
+
+```make
+# `$(CMD)` が空でも、recipe 全体は有効な shell command のままにする
+	: nothing to do; $(CMD)
+```
+
+単に command position の expansion が空になる書き方や、空展開の後ろに `;` だけを残す書き方は避ける。`$(CMD)` が shell grammar、複数 word、operator を生成しないという既存の前提も引き続き適用する。
+
 ## Skip
 
 以下は安全に処理できなければ recipe command 単位で untouched とする。
