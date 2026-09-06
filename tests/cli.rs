@@ -98,6 +98,55 @@ fn diff_keeps_unchanged_lines_as_context() {
 }
 
 #[test]
+fn masking_works_through_check_diff_and_write() {
+    let workspace = Workspace::new();
+    let original = include_bytes!("fixtures/masking.mk");
+    let expected = include_bytes!("fixtures/masking.expected.mk");
+    let input = workspace.write("Makefile", original);
+    assert_eq!(
+        workspace.run(&["--check", "Makefile"], None).status.code(),
+        Some(1)
+    );
+    let diff = workspace.run(&["--diff", "Makefile"], None);
+    assert!(diff.status.success());
+    assert!(!String::from_utf8_lossy(&diff.stdout).contains("__MAKEFMT_1_"));
+    assert!(String::from_utf8_lossy(&diff.stdout).contains("+\techo \"$$HOME\";"));
+    assert_eq!(fs::read(&input).unwrap(), original);
+    assert!(workspace.run(&["-w", "Makefile"], None).status.success());
+    assert_eq!(fs::read(&input).unwrap(), expected);
+    assert_eq!(
+        workspace.run(&["--check", "Makefile"], None).status.code(),
+        Some(0)
+    );
+}
+
+#[test]
+fn corrupt_placeholders_skip_only_the_command() {
+    let workspace = Workspace::new();
+    for corrupt in [
+        "echo lost;",
+        "echo __MAKEFMT_0_0__ __MAKEFMT_0_0__;",
+        "echo __MAKEFMT_0_broken__;",
+    ] {
+        let input = workspace.write("Makefile", b"X=1\nall:\n\techo $(NAME)\n\techo good\n");
+        let fake = format!(
+            "#!/bin/sh\nread -r line\n/bin/cat >/dev/null\nif [ \"$line\" = 'echo makefile_fmt_probe' ]; then\n printf 'echo makefile_fmt_probe;\\nif true; then\\n\\techo ok;\\nfi;\\n'\nelif [ \"$line\" = 'echo good' ] || [ \"$line\" = 'echo good;' ]; then\n printf 'echo good;\\n'\nelse\n printf '%s\\n' '{corrupt}'\nfi\n"
+        );
+        workspace.fake_shfmt(fake.as_bytes());
+        let output = workspace.run(&["-w", "Makefile"], Some(&workspace.0));
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            fs::read(input).unwrap(),
+            b"X = 1\nall:\n\techo $(NAME)\n\techo good;\n"
+        );
+    }
+}
+
+#[test]
 fn unsupported_never_writes_or_outputs_a_partial_result() {
     let workspace = Workspace::new();
     for feature in [
@@ -113,6 +162,8 @@ fn unsupported_never_writes_or_outputs_a_partial_result() {
         "-load x",
         "X = SHELL",
         "# ${eval x}",
+        "# $(eval x)",
+        "all:\n\techo $(call f,$(eval X=1))",
         "define FOO\n$(eval .ONESHELL:)\nendef",
         "all:\n\t$(eval SHELL=sh)",
     ] {
