@@ -22,6 +22,10 @@ fn fixtures_and_idempotency() {
         ),
         (b"", b""),
         (
+            include_bytes!("fixtures/masking.mk"),
+            include_bytes!("fixtures/masking.expected.mk"),
+        ),
+        (
             b"all:\n\techo    one\n\techo    two\n",
             b"all:\n\techo one;\n\techo two;\n",
         ),
@@ -109,7 +113,7 @@ fn make_441_assignment_directive_boundaries() {
         for separator in ["=", " = "] {
             let input = format!("{name}{separator}value\nall:\n\t@printf '%s\\n' '$({name})'\n");
             let formatted = format(input.as_bytes());
-            let expected = format!("{name} = value\nall:\n\t@printf '%s\\n' '$({name})'\n");
+            let expected = format!("{name} = value\nall:\n\t@printf '%s\\n' '$({name})';\n");
             assert_eq!(formatted, expected.as_bytes());
             let before = execute_make(input.as_bytes());
             let after = execute_make(&formatted);
@@ -166,7 +170,7 @@ fn make_441_conditional_arguments_are_not_assignments() {
     let formatted = format(input);
     assert_eq!(
         formatted,
-        b"ifeq (a=b,a=b)\nX=1\nelse\nX=2\nendif\nY = 3\nall:\n\t@printf '%s\\n' '$(X)'\n"
+        b"ifeq (a=b,a=b)\nX=1\nelse\nX=2\nendif\nY = 3\nall:\n\t@printf '%s\\n' '$(X)';\n"
     );
     let before = execute_make(input);
     let after = execute_make(&formatted);
@@ -257,4 +261,84 @@ fn unsupported_precedes_tool_configuration_checks() {
         makefile_fmt::format(b"X=1\n.ONESHELL:\n", "/nonexistent/makefile-fmt-shfmt").unwrap_err();
     assert_eq!(error.exit_code(), 2);
     assert!(error.to_string().starts_with("2:"));
+}
+
+#[test]
+fn masking_preserves_make_execution_and_shell_dollars() {
+    let cases: &[&[u8]] = &[
+        b"NAME=hello\nall:\n\t@printf '%s\\n' '$(NAME)' \"${NAME}\" pre$(NAME)post\n",
+        b"all:\n\t@value=hello; printf '%s\\n' \"$$value\" '$$value' \\$$value\n",
+        b"NAME=hello\nall:\n\t@printf '%s\\n' \"$$HOME\" '$(NAME)' '${NAME}' '$$$$' __MAKEFMT_0_0__\n",
+        b"NAME=hello\nall:\n\t@if test -n \"$(NAME)\"; then \\\n\tprintf '%s\\n' \"$$HOME\"; \\\n\tfi\n",
+        b"NAME=hello\nall:\n\t@printf '%s\\n' '$(subst h,j,$(NAME))' '${NAME}'\n",
+        b"KEY=one\nVAR_one=hello\nall:\n\t@printf '%s\\n' '${VAR_$(KEY)}'\n",
+        b"CC=printf\nFLAG=%s\\n\nall:\n\t@$(CC) '$(FLAG)' hello\n",
+        b".PHONY: all input\ninput:\nall: input\n\t@printf '%s\\n' '$@' '$<' '$^' '$?'\n",
+        b"all:\n\t@for item in a b; do \\\n\tprintf '%s\\n' \"$$item\"; \\\n\tdone\n",
+    ];
+    for &input in cases {
+        let formatted = format(input);
+        assert_ne!(formatted, input, "fixture must exercise formatting");
+        let before = execute_make(input);
+        let after = execute_make(&formatted);
+        assert!(
+            before.status.success(),
+            "{}",
+            String::from_utf8_lossy(&before.stderr)
+        );
+        assert!(
+            after.status.success(),
+            "{}",
+            String::from_utf8_lossy(&after.stderr)
+        );
+        assert_eq!(
+            after.stdout,
+            before.stdout,
+            "{}",
+            String::from_utf8_lossy(&formatted)
+        );
+        assert_eq!(format(&formatted), formatted);
+    }
+}
+
+#[test]
+fn masking_crlf_and_final_newline_are_preserved() {
+    let input = include_str!("fixtures/masking.mk").replace('\n', "\r\n");
+    let expected = include_str!("fixtures/masking.expected.mk").replace('\n', "\r\n");
+    for (input, expected) in [
+        (input.as_bytes(), expected.as_bytes()),
+        (
+            &input.as_bytes()[..input.len() - 2],
+            &expected.as_bytes()[..expected.len() - 2],
+        ),
+    ] {
+        let formatted = format(input);
+        assert_eq!(formatted, expected);
+        assert_eq!(format(&formatted), formatted);
+    }
+}
+
+#[test]
+fn unsupported_dollars_and_existing_unsafe_commands_are_preserved() {
+    for command in [
+        "echo $$$",
+        "echo $|",
+        "echo $0",
+        "echo $x",
+        "echo $(BROKEN",
+        "echo ${BROKEN",
+        "echo $(outer ${inner)",
+        "echo $(X) # comment",
+        "cat <<EOF $(X)",
+        "echo `date` $(X)",
+        "echo '",
+        "echo '$(X)\\\n\tx'",
+        "echo $$(printf x)",
+        "echo $(multi\\\n\tline)",
+    ] {
+        let input = format!("X=1\nall:\n\t{command}\n\techo    valid\n");
+        let expected = format!("X = 1\nall:\n\t{command}\n\techo valid;\n");
+        assert_eq!(format(input.as_bytes()), expected.as_bytes(), "{command}");
+        assert_eq!(format(expected.as_bytes()), expected.as_bytes());
+    }
 }

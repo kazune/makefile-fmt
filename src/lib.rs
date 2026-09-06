@@ -1,5 +1,6 @@
 //! Conservative, byte-preserving formatting for the subset documented in MVP.md.
 
+mod masking;
 mod recipe;
 pub mod scan;
 mod shfmt;

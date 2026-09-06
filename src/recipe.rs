@@ -1,4 +1,4 @@
-use crate::{Error, scan::without_eol, shfmt::Shfmt};
+use crate::{Error, masking::Masked, scan::without_eol, shfmt::Shfmt};
 
 struct Command {
     prefix: Vec<u8>,
@@ -13,7 +13,7 @@ fn safe_shell(shell: &[u8]) -> bool {
     if std::str::from_utf8(shell).is_err()
         || shell
             .iter()
-            .any(|b| b"$`#".contains(b) || (b.is_ascii_control() && !b"\t\n".contains(b)))
+            .any(|b| b"`#".contains(b) || (b.is_ascii_control() && !b"\t\n".contains(b)))
         || shell.windows(2).any(|w| w == b"<<")
     {
         return false;
@@ -133,7 +133,7 @@ pub(crate) fn format(raw: &[u8], shfmt: &Shfmt) -> Result<Option<Vec<u8>>, Error
     let Some(command) = extract(raw) else {
         return Ok(None);
     };
-    let Some(formatted) = shfmt.format(&command.shell)? else {
+    let Some(formatted) = format_shell(&command.shell, shfmt)? else {
         return Ok(None);
     };
     let Some(rebuilt) = rebuild(&command, &formatted) else {
@@ -147,10 +147,31 @@ pub(crate) fn format(raw: &[u8], shfmt: &Shfmt) -> Result<Option<Vec<u8>>, Error
     let Some(round_trip) = extract(&rebuilt) else {
         return Ok(None);
     };
-    if shfmt.format(&round_trip.shell)?.as_deref() != Some(formatted.as_slice()) {
+    if format_shell(&round_trip.shell, shfmt)?.as_deref() != Some(formatted.as_slice()) {
         return Ok(None);
     }
     Ok(Some(rebuilt))
+}
+
+fn format_shell(shell: &[u8], shfmt: &Shfmt) -> Result<Option<Vec<u8>>, Error> {
+    let Some(masked) = Masked::new(shell) else {
+        return Ok(None);
+    };
+    if !safe_shell(&masked.shell) || !safe_shell(&masked.witness) {
+        return Ok(None);
+    }
+    let Some(formatted) = shfmt.format(&masked.shell)? else {
+        return Ok(None);
+    };
+    let witness = if masked.has_shell_dollars {
+        let Some(witness) = shfmt.format(&masked.witness)? else {
+            return Ok(None);
+        };
+        witness
+    } else {
+        formatted.clone()
+    };
+    Ok(masked.restore(&formatted, &witness))
 }
 
 #[cfg(test)]
@@ -160,8 +181,7 @@ mod tests {
     #[test]
     fn lexical_skip_boundaries() {
         for shell in [
-            b"echo $X\n".as_slice(),
-            b"echo `date`\n",
+            b"echo `date`\n".as_slice(),
             b"echo x # comment\n",
             b"cat <<EOF\n",
             b"echo 'unclosed\n",

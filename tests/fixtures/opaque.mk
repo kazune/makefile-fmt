@@ -27,8 +27,6 @@ unknown syntax
     space-indented text
 
 all:
-	@echo $(VAR)
-	@echo $$x
 	@echo hi # shell comment
 	@cat <<EOF
 	@printf '%s\n' 'a\
