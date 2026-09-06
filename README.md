@@ -9,7 +9,7 @@ v0.3 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含
 
 ## ビルドと使用方法
 
-Rust / Cargo と、`--explicit-semicolons` に対応した fork 版 `shfmt` が必要です。開発時の検証には Rust 1.96.0 を使用しています。`shfmt` を PATH に置いてください。
+Rust / Cargo と、`--explicit-semicolons` に対応した [fork 版 shfmt](https://github.com/kazune/shfmt-explicit-semicolons) が必要です。開発時の検証には Rust 1.96.0 を使用しています。`shfmt` を PATH に置いてください。
 
 ```sh
 cargo build --release
