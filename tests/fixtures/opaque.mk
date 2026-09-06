@@ -9,15 +9,13 @@ Y=2
 endef
 endef
 
-$(OBJS): common.h
-	echo    complex
 foo: ; echo    inline
 foo:: bar
 	echo    double
-%.o: %.c
-	echo    pattern
-foo: | build
-	echo    order
+foo &: bar
+	echo    grouped
+foo: %.o: %.c
+	echo    static
 ifeq ($(X),1)
 X=1
 else

@@ -136,6 +136,83 @@ fn syntax_positions(bytes: &[u8]) -> Vec<usize> {
     positions
 }
 
+/// Stricter than the historical fatal scanner: formatting needs proof that
+/// references close, not just a best-effort list of visible punctuation.
+/// Values are never expanded. Escaped header text remains conservative.
+fn header_positions(bytes: &[u8]) -> Option<Vec<usize>> {
+    if std::str::from_utf8(bytes).is_err() {
+        return None;
+    }
+    let mut positions = Vec::new();
+    let mut stack = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(&close) = stack.last() {
+            if c == b'$' && bytes.get(i + 1).is_some_and(|b| matches!(b, b'(' | b'{')) {
+                stack.push(if bytes[i + 1] == b'(' { b')' } else { b'}' });
+                i += 2;
+                continue;
+            }
+            if c == close {
+                stack.pop();
+            } else if (c == b'(' && close == b')') || (c == b'{' && close == b'}') {
+                stack.push(close);
+            } else if matches!(c, b')' | b'}') && stack.contains(&c) {
+                return None;
+            }
+        } else {
+            match c {
+                b'#' => break,
+                // Do not infer quoting of Make punctuation or dollars from
+                // shell escape rules. Continuations were already folded.
+                b'\\' => return None,
+                b'$' => {
+                    match *bytes.get(i + 1)? {
+                        b'(' => stack.push(b')'),
+                        b'{' => stack.push(b'}'),
+                        b'$'
+                        | b'@'
+                        | b'<'
+                        | b'^'
+                        | b'?'
+                        | b'*'
+                        | b'%'
+                        | b'|'
+                        | b'a'..=b'z'
+                        | b'A'..=b'Z'
+                        | b'0'..=b'9'
+                        | b'_' => {}
+                        _ => return None,
+                    }
+                    i += 2;
+                    continue;
+                }
+                _ if c.is_ascii_control() && c != b'\t' => return None,
+                _ => positions.push(i),
+            }
+        }
+        i += 1;
+    }
+    stack.is_empty().then_some(positions)
+}
+
+/// Header bytes are never rewritten. Only a single literal rule delimiter
+/// grants formatting permission to the following TAB recipes.
+fn recipe_header_safe(bytes: &[u8], colon: usize) -> Option<bool> {
+    let positions = header_positions(bytes)?;
+    let colons: Vec<_> = positions
+        .iter()
+        .copied()
+        .filter(|&i| bytes[i] == b':')
+        .collect();
+    Some(
+        colons == [colon]
+            && !trim(&bytes[..colon]).is_empty()
+            && !positions.iter().any(|&i| b";&=".contains(&bytes[i])),
+    )
+}
+
 fn uncomment(bytes: &[u8]) -> &[u8] {
     let end = syntax_positions(bytes)
         .into_iter()
@@ -376,16 +453,19 @@ pub fn scan(source: &[u8]) -> Result<Vec<Line>, Unsupported> {
             let rest = trim_start(&text[colon + 1..]);
             let variable_part = trim_start(rest.strip_prefix(b":").unwrap_or(rest));
             check_assignment(variable_part, number)?;
-            kind = LineKind::Rule;
+            let header_safe = recipe_header_safe(trim(&folded), colon);
+            kind = if header_safe.is_some() {
+                LineKind::Rule
+            } else {
+                LineKind::Unknown
+            };
             after_rule = assignment(variable_part).is_none();
-            // Complex and inline rules, and all their recipes, remain opaque.
+            // Keep structural fatal recognition separate from permission to
+            // format recipes. Header references may name files/lists, but the
+            // supported subset forbids them from generating Make grammar.
             safe_rule = format_safe
-                && !targets.is_empty()
-                && targets
-                    .iter()
-                    .all(|c| c.is_ascii_alphanumeric() || b"_./- ".contains(c))
-                && !text.iter().any(|c| b"$\\%&|;".contains(c))
-                && !rest.contains(&b':')
+                && header_safe == Some(true)
+                && !without_eol(raw).ends_with(b"\\")
                 && after_rule;
         } else {
             kind = if [b"export".as_slice(), b"unexport", b"undefine"]
@@ -517,6 +597,53 @@ mod tests {
         assert!(scan(b"foo: X = SHELL\n").is_err());
         assert!(scan(b"foo: ; echo SHELL=x\n").is_ok());
         assert!(scan(b"define = value\nSHELL=x\n").is_err());
+    }
+
+    #[test]
+    fn header_ownership_requires_balanced_structural_delimiters() {
+        for header in [
+            "$(OUTDIR):",
+            "${OUTDIR}/%: %.c | $(OUTDIR)",
+            "$(OBJS:%.c=%.o): ${DEPS}",
+            "$(subst :;=,x,$(NAME)): $(call deps,${KEY})",
+            "foo: # $(unclosed : ; = &",
+            "foo \\\nbar: dep \\\n other",
+        ] {
+            let input = format!("{header}\n\techo hi\n");
+            let lines = scan(input.as_bytes()).unwrap();
+            assert_eq!(lines[0].kind, LineKind::Rule, "{header}");
+            assert_eq!(lines[1].kind, LineKind::Recipe, "{header}");
+            assert!(lines[1].format_safe, "{header}");
+            assert_eq!(
+                &input.as_bytes()[lines[0].range.clone()],
+                format!("{header}\n").as_bytes()
+            );
+        }
+        for header in [
+            "foo:: dep",
+            "foo &: dep",
+            "foo &:: dep",
+            "foo: %.o: %.c",
+            "foo: ; echo inline",
+            "foo: X = value",
+            "foo: private X := value",
+            "foo: dep=literal",
+            "foo\\:bar: dep",
+            "foo: dep\\#literal",
+            "$(UNCLOSED: dep",
+            "foo: ${UNCLOSED",
+            "foo: $(outer ${inner)}",
+            "foo: $",
+            "foo: $:",
+        ] {
+            let input = format!("{header}\n\techo hi\nnext:\n\techo ok\n");
+            let lines = scan(input.as_bytes()).unwrap();
+            assert!(!lines[1].format_safe, "{header}");
+            assert!(lines[3].format_safe, "{header}");
+        }
+        let lines = scan(b"foo: $(UNCLOSED\n\techo hi\n").unwrap();
+        assert_eq!(lines[0].kind, LineKind::Unknown);
+        assert!(!lines[1].format_safe);
     }
 
     #[test]
