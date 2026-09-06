@@ -1,6 +1,6 @@
 # Release notes
 
-## v0.3.0 (unreleased)
+## v0.3.0
 
 * Separate rule-header preservation from recipe-formatting eligibility. Recipes
   under structurally recognized single-colon rules can now be formatted with
@@ -13,6 +13,13 @@
   remain conservative.
 * Header expansions must only generate names or lists, not change Make header
   structure. Values are not evaluated. GNU Make 4.4.1 remains the baseline.
+
+Release validation reported by the maintainer on an 85-file corpus:
+
+* Dollar-containing recipes formatted: 72 → 95; total recipes formatted: 120 → 146.
+* No header changes, ownership errors, non-idempotence, semantic issues, or
+  GNU Make 4.4.1 execution differences were observed.
+* Fatal unsupported behavior was unchanged from v0.2.
 
 ## v0.2.0
 
