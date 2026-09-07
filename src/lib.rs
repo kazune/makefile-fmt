@@ -1,6 +1,7 @@
 //! Conservative formatting for the subset in MVP.md, MVP-0.2.md and MVP-0.3.md.
 
 mod masking;
+mod normalize;
 mod recipe;
 pub mod scan;
 mod shfmt;
@@ -40,6 +41,7 @@ pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, E
     let lines = scan::scan(source).map_err(Error::Unsupported)?;
     let shfmt = shfmt::Shfmt::new(shfmt_path.as_ref())?;
     let mut edits = assignment_edits(source, &lines);
+    edits.extend(normalize::blank_line_edits(&lines));
     for line in &lines {
         if line.kind == scan::LineKind::Recipe
             && line.format_safe
@@ -52,7 +54,7 @@ pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, E
         }
     }
     edits.sort_by_key(|edit| edit.range.start);
-    Ok(apply_edits(source, &edits))
+    Ok(normalize::final_newline(apply_edits(source, &edits)))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -105,7 +105,7 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 
 初期実装では、複数行の Make expression と、由来確認用入力を安全に整形できない `$$(command)` 等も保持します。
 
-単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。assignment RHS の内容・末尾空白と、未変更領域の bytes（trailing whitespace を含む）は保持します。Makefile 全体に一律の空行整理や trailing whitespace 削除を行う処理はありません。ただし、整形対象 recipe の trailing whitespace や内部レイアウトは shfmt の規則に従って変更されることがあります。CRLF と末尾改行の有無は保持します。
+単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。assignment RHS の内容・末尾空白と、未変更領域の bytes（trailing whitespace を含む）は保持します。ただし、ファイル先頭の空行は削除し、連続する空行は1つに圧縮します。`define` 本文の空行は値の一部なので対象外です。非空ファイルの末尾は改行1つに統一し、既存の最後の改行形式（LF / CRLF）を維持します。trailing whitespace の一律削除は行いません。整形対象 recipe の trailing whitespace や内部レイアウトは shfmt の規則に従って変更されることがあります。
 
 ## 安全性の境界
 

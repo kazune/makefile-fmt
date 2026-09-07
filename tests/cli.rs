@@ -98,6 +98,34 @@ fn diff_keeps_unchanged_lines_as_context() {
 }
 
 #[test]
+fn diff_shows_each_blank_line_normalization() {
+    let workspace = Workspace::new();
+    let cases: &[(&str, &[u8], &[u8])] = &[
+        (
+            "leading.mk",
+            b"\n\nX = 1\n",
+            b"--- leading.mk\n+++ leading.mk\n@@ -1,3 +1,1 @@\n-\n-\n X = 1\n",
+        ),
+        (
+            "consecutive.mk",
+            b"X = 1\n\n\nY = 2\n",
+            b"--- consecutive.mk\n+++ consecutive.mk\n@@ -1,4 +1,3 @@\n X = 1\n \n-\n Y = 2\n",
+        ),
+        (
+            "final-newline.mk",
+            b"X = 1",
+            b"--- final-newline.mk\n+++ final-newline.mk\n@@ -1,1 +1,1 @@\n-X = 1\n\\ No newline at end of file\n+X = 1\n",
+        ),
+    ];
+    for &(name, input, expected) in cases {
+        workspace.write(name, input);
+        let output = workspace.run(&["--diff", name], None);
+        assert!(output.status.success());
+        assert_eq!(output.stdout, expected, "{name}");
+    }
+}
+
+#[test]
 fn masking_works_through_check_diff_and_write() {
     let workspace = Workspace::new();
     let original = include_bytes!("fixtures/masking.mk");
@@ -267,7 +295,7 @@ fn writes_preserve_permissions_and_symlinks() {
     symlink("actual.mk", workspace.0.join("Makefile")).unwrap();
     let output = workspace.run(&["-w", "Makefile"], None);
     assert!(output.status.success());
-    assert_eq!(fs::read(&input).unwrap(), b"X = 1");
+    assert_eq!(fs::read(&input).unwrap(), b"X = 1\n");
     assert_eq!(
         fs::metadata(&input).unwrap().permissions().mode() & 0o777,
         0o640

@@ -35,7 +35,7 @@ fn fixtures_and_idempotency() {
         ),
         (
             b"all:\n\techo    one\n\techo    two",
-            b"all:\n\techo one;\n\techo two;",
+            b"all:\n\techo one;\n\techo two;\n",
         ),
         (b"X=   \nY=\xff  \n", b"X =   \nY = \xff  \n"),
         (
@@ -88,15 +88,12 @@ fn command_position_expansion_is_masked_only_under_format_safe_rules() {
 }
 
 #[test]
-fn crlf_and_final_newline_are_preserved() {
+fn crlf_and_final_newline_are_normalized() {
     let input = include_str!("fixtures/basic.mk").replace('\n', "\r\n");
     let expected = include_str!("fixtures/basic.expected.mk").replace('\n', "\r\n");
     for (input, expected) in [
         (input.as_bytes(), expected.as_bytes()),
-        (
-            &input.as_bytes()[..input.len() - 2],
-            &expected.as_bytes()[..expected.len() - 2],
-        ),
+        (&input.as_bytes()[..input.len() - 2], expected.as_bytes()),
     ] {
         let output = format(input);
         assert_eq!(output, expected);
@@ -105,8 +102,17 @@ fn crlf_and_final_newline_are_preserved() {
     let mixed = b"X=1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY=2";
     assert_eq!(
         format(mixed),
-        b"X = 1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY = 2"
+        b"X = 1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY = 2\r\n"
     );
+}
+
+#[test]
+fn leading_and_consecutive_blank_lines_are_normalized_except_in_define_bodies() {
+    let input = b"\n \nX=1\n\n \n\nY=2\n\ndefine VALUE\nfirst\n\n\nlast\nendef\n\n\n";
+    let expected = b"X = 1\n\nY = 2\n\ndefine VALUE\nfirst\n\n\nlast\nendef\n";
+    let output = format(input);
+    assert_eq!(output, expected);
+    assert_eq!(format(&output), output);
 }
 
 fn execute_make(source: &[u8]) -> Output {
@@ -475,15 +481,12 @@ fn command_disappearance_is_an_unchecked_input_precondition() {
 }
 
 #[test]
-fn masking_crlf_and_final_newline_are_preserved() {
+fn masking_crlf_and_final_newline_are_normalized() {
     let input = include_str!("fixtures/masking.mk").replace('\n', "\r\n");
     let expected = include_str!("fixtures/masking.expected.mk").replace('\n', "\r\n");
     for (input, expected) in [
         (input.as_bytes(), expected.as_bytes()),
-        (
-            &input.as_bytes()[..input.len() - 2],
-            &expected.as_bytes()[..expected.len() - 2],
-        ),
+        (&input.as_bytes()[..input.len() - 2], expected.as_bytes()),
     ] {
         let formatted = format(input);
         assert_eq!(formatted, expected);
@@ -548,10 +551,7 @@ fn rule_header_corpus_preserves_make_441_execution_and_header_bytes() {
                 let (input, expected) = if final_newline {
                     (input.as_str(), expected.as_str())
                 } else {
-                    (
-                        input.strip_suffix(eol).unwrap(),
-                        expected.strip_suffix(eol).unwrap(),
-                    )
+                    (input.strip_suffix(eol).unwrap(), expected.as_str())
                 };
                 let output = format(input.as_bytes());
                 assert_ne!(

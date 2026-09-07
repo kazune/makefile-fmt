@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+* Remove leading blank lines and collapse consecutive blank lines outside
+  `define` bodies to one line.
+* Normalize non-empty files to exactly one final newline, retaining the last
+  observed LF or CRLF style.
+
 ## v0.3.1
 
 Documentation and regression-test release; formatting behavior is unchanged.
