@@ -4,8 +4,8 @@
 
 * Remove leading blank lines and collapse consecutive blank lines outside
   `define` bodies to one line.
-* Normalize non-empty files to exactly one final newline, retaining the last
-  observed LF or CRLF style.
+* Normalize non-empty inputs to exactly one final LF newline, including inputs
+  consisting only of blank lines.
 
 ## v0.3.1
 

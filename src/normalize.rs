@@ -26,21 +26,19 @@ pub(crate) fn blank_line_edits(lines: &[scan::Line]) -> Vec<Edit> {
     edits
 }
 
-/// Give a non-empty file exactly one final line ending. Keep the style of its
-/// last existing line ending, defaulting to LF when the source had none.
-pub(crate) fn final_newline(mut source: Vec<u8>) -> Vec<u8> {
+/// Give a non-empty input exactly one final LF. An empty input remains empty.
+pub(crate) fn final_newline(mut source: Vec<u8>, input_was_nonempty: bool) -> Vec<u8> {
     if source.is_empty() {
+        if input_was_nonempty {
+            source.push(b'\n');
+        }
         return source;
     }
-    let ending = match source.iter().rposition(|&byte| byte == b'\n') {
-        Some(index) if index > 0 && source[index - 1] == b'\r' => b"\r\n".as_slice(),
-        _ => b"\n".as_slice(),
-    };
     while source.ends_with(b"\r\n") || source.ends_with(b"\n") {
         let length = if source.ends_with(b"\r\n") { 2 } else { 1 };
         source.truncate(source.len() - length);
     }
-    source.extend_from_slice(ending);
+    source.push(b'\n');
     source
 }
 
@@ -49,10 +47,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn final_newline_is_normalized_without_changing_its_style() {
-        assert_eq!(final_newline(b"X".to_vec()), b"X\n");
-        assert_eq!(final_newline(b"X\n\n".to_vec()), b"X\n");
-        assert_eq!(final_newline(b"X\r\n\r\n".to_vec()), b"X\r\n");
-        assert_eq!(final_newline(Vec::new()), b"");
+    fn final_newline_is_normalized_to_lf() {
+        assert_eq!(final_newline(b"X".to_vec(), true), b"X\n");
+        assert_eq!(final_newline(b"X\n\n".to_vec(), true), b"X\n");
+        assert_eq!(final_newline(b"X\r\n\r\n".to_vec(), true), b"X\n");
+        assert_eq!(final_newline(Vec::new(), false), b"");
+        assert_eq!(final_newline(Vec::new(), true), b"\n");
     }
 }

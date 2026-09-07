@@ -54,7 +54,10 @@ pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, E
         }
     }
     edits.sort_by_key(|edit| edit.range.start);
-    Ok(normalize::final_newline(apply_edits(source, &edits)))
+    Ok(normalize::final_newline(
+        apply_edits(source, &edits),
+        !source.is_empty(),
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -90,7 +90,9 @@ fn command_position_expansion_is_masked_only_under_format_safe_rules() {
 #[test]
 fn crlf_and_final_newline_are_normalized() {
     let input = include_str!("fixtures/basic.mk").replace('\n', "\r\n");
-    let expected = include_str!("fixtures/basic.expected.mk").replace('\n', "\r\n");
+    let mut expected = include_str!("fixtures/basic.expected.mk").replace('\n', "\r\n");
+    expected.truncate(expected.len() - 2);
+    expected.push('\n');
     for (input, expected) in [
         (input.as_bytes(), expected.as_bytes()),
         (&input.as_bytes()[..input.len() - 2], expected.as_bytes()),
@@ -102,8 +104,9 @@ fn crlf_and_final_newline_are_normalized() {
     let mixed = b"X=1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY=2";
     assert_eq!(
         format(mixed),
-        b"X = 1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY = 2\r\n"
+        b"X = 1\r\nall:\n\tif true; then \\\r\n\techo x; \\\n\tfi\r\nY = 2\n"
     );
+    assert_eq!(format(b"\r\nX"), b"X\n");
 }
 
 #[test]
@@ -113,6 +116,8 @@ fn leading_and_consecutive_blank_lines_are_normalized_except_in_define_bodies() 
     let output = format(input);
     assert_eq!(output, expected);
     assert_eq!(format(&output), output);
+    assert_eq!(format(b"\n \n"), b"\n");
+    assert_eq!(format(b"\r\n\r\n"), b"\n");
 }
 
 fn execute_make(source: &[u8]) -> Output {
@@ -483,7 +488,9 @@ fn command_disappearance_is_an_unchecked_input_precondition() {
 #[test]
 fn masking_crlf_and_final_newline_are_normalized() {
     let input = include_str!("fixtures/masking.mk").replace('\n', "\r\n");
-    let expected = include_str!("fixtures/masking.expected.mk").replace('\n', "\r\n");
+    let mut expected = include_str!("fixtures/masking.expected.mk").replace('\n', "\r\n");
+    expected.truncate(expected.len() - 2);
+    expected.push('\n');
     for (input, expected) in [
         (input.as_bytes(), expected.as_bytes()),
         (&input.as_bytes()[..input.len() - 2], expected.as_bytes()),
@@ -547,7 +554,9 @@ fn rule_header_corpus_preserves_make_441_execution_and_header_bytes() {
         for eol in ["\n", "\r\n"] {
             for final_newline in [true, false] {
                 let input = source.replace('\n', eol);
-                let expected = expected.replace('\n', eol);
+                let mut expected = expected.replace('\n', eol);
+                expected.truncate(expected.len() - eol.len());
+                expected.push('\n');
                 let (input, expected) = if final_newline {
                     (input.as_str(), expected.as_str())
                 } else {

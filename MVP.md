@@ -851,17 +851,9 @@ recipe command に `$` が存在する
 
 ---
 
-# Blank Lines（未実装の将来案）
+# Blank Lines
 
-連続空行の整理は v0.1 から現行版まで未実装であり、Makefile 全体に一律の空行整理を行う処理はない。以下は将来案であって、現行版の動作や完成条件ではない。なお、整形対象 recipe の内部レイアウトは shfmt に従う。
-
-将来追加する場合は、安全な通常領域に限り、連続空行を一定数までに制限することを検討する。
-
-例:
-
-```text
-max consecutive blank lines = 2
-```
+ファイル先頭の空行は削除し、通常領域で連続する空行は1行に圧縮する。非空入力の末尾は LF 改行1つに統一する。空白行だけの非空入力も LF 改行1つになる。整形対象 recipe の内部レイアウトは shfmt に従う。
 
 ただし、
 
@@ -871,7 +863,7 @@ define ...
 endef
 ```
 
-などの opaque block 内では変更しない。
+などの opaque block 内では、空行が値の一部なので変更しない。
 
 ---
 
@@ -979,7 +971,7 @@ shfmt 設定の固定・EditorConfig の影響の排除
 -w 時の unsupported input が byte-for-byte unchanged
 opaque region が byte-for-byte unchanged
 idempotency
-CRLF / final newline preservation
+CRLF の未変更領域の保持 / final LF newline normalization
 ```
 
 特に、
