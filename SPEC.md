@@ -1,8 +1,8 @@
-# makefile-fmt MVP（v0.1 履歴仕様）
+# makefile-fmt Specification
 
-この文書は v0.1 の設計・仕様を記録する履歴文書であり、現行版の全機能を説明するものではない。共通の safety model は引き継ぐが、recipe 内の `$` による一律 skip など、後続版で置き換えられた規則を含む。
+この文書は `makefile-fmt` の正規仕様である。README は導入と使い方、CHANGELOG はリリース履歴を扱う。
 
-現行の整形範囲と制約は [README.md](README.md) を参照する。Make expansion masking と recipe expansion の保証条件は [MVP-0.2.md](MVP-0.2.md)、rule header と recipe の所属判定は [MVP-0.3.md](MVP-0.3.md) に記載する。未実装の将来案は、その節で明示する。
+現行実装が保証する対象範囲、安全性の境界、CLI の挙動を定義する。
 
 ## 目的
 
@@ -37,13 +37,13 @@ recipe 内の shell script の整形は独自実装せず、明示的なセミ�
 
 任意の GNU Make 実行環境に対する意味保存までは保証しない。
 
-`makefile-fmt` v0.1 の semantic-preservation の保証基準は **GNU Make 4.4.1** とする。
+`makefile-fmt` の semantic-preservation の保証基準は **GNU Make 4.4.1** とする。
 
-それ以前の GNU Make、特に 3.x 系との互換性は保証しない。assignment / directive の判定など、バージョンによって構造認識そのものが変わるケースについて、MVP で複数バージョン対応は行わない。
+それ以前の GNU Make、特に 3.x 系との互換性は保証しない。assignment / directive の判定など、バージョンによって構造認識そのものが変わるケースについて、makefile-fmt で複数バージョン対応は行わない。
 
 例えば `include=value` / `include = value` は GNU Make 4.4.1 の変数代入として扱う。formatter 自体が GNU Make のバージョンや parser / evaluator を完全再現することは目標にしない。
 
-MVP の supported subset は以下を前提とする。
+makefile-fmt の supported subset は以下を前提とする。
 
 * Unix 系環境である。
 * GNU Make 4.4.1 の挙動を基準とする。
@@ -73,7 +73,7 @@ $(OBJS): common.h
 
 > formatter の成功は、入力が supported subset の前提を満たすことを証明するものではない。
 
-`makefile-fmt` が検出するのは、MVP で静的に認識すると決めた unsupported feature だけである。
+`makefile-fmt` が検出するのは、makefile-fmt で静的に認識すると決めた unsupported feature だけである。
 
 以下の名前などが間接的に生成されていないことまでは証明しない。
 
@@ -134,7 +134,7 @@ Rust コード内では `makefile_fmt` として参照する。
 
 ---
 
-# MVP の処理フロー
+# 処理フロー
 
 ```text
 read entire file
@@ -178,7 +178,7 @@ formatter が整形する。
 
 ## Opaque
 
-完全には理解しない、または MVP では整形しない構文。
+完全には理解しない、または makefile-fmt では整形しない構文。
 
 元の bytes をそのまま保持する。
 
@@ -204,7 +204,7 @@ non-zero exit
 
 # Fatal Unsupported
 
-MVP では以下を全文 pre-scan で検出した場合、ファイル全体を unsupported とする。
+makefile-fmt では以下を全文 pre-scan で検出した場合、ファイル全体を unsupported とする。
 
 ## 検査の context
 
@@ -267,7 +267,7 @@ recipe の shell invocation 単位が変わるため扱わない。
 
 recipe の認識規則自体が変わるため扱わない。
 
-MVP はデフォルトの TAB recipe のみ対象とする。
+makefile-fmt はデフォルトの TAB recipe のみ対象とする。
 
 ---
 
@@ -289,7 +289,7 @@ foo: SHELL := /bin/bash
 
 global / target-specific を含め、`SHELL` の設定を認識したら unsupported とする。
 
-MVP の recipe formatting は GNU Make のデフォルト shell 設定を前提とする。
+makefile-fmt の recipe formatting は GNU Make のデフォルト shell 設定を前提とする。
 
 ---
 
@@ -325,7 +325,7 @@ sinclude foo.mk
 
 include 先から `.ONESHELL`、`.RECIPEPREFIX`、`SHELL` 等が導入される可能性がある。
 
-MVP では include graph を追跡しない。
+makefile-fmt では include graph を追跡しない。
 
 ---
 
@@ -482,7 +482,7 @@ foo:: bar
 foo: | build
 ```
 
-MVP で安全に整形できない場合、その rule をそのまま保持する。
+makefile-fmt で安全に整形できない場合、その rule をそのまま保持する。
 
 ---
 
@@ -556,7 +556,7 @@ struct Line<'a> {
 }
 ```
 
-scanner state は MVP では最小限にする。
+scanner state は makefile-fmt では最小限にする。
 
 ```rust
 struct ScanState {
@@ -591,7 +591,7 @@ struct Edit {
 
 # Assignment Formatting
 
-MVP では安全に認識できる単純な assignment のみ整形する。
+makefile-fmt では安全に認識できる単純な assignment のみ整形する。
 
 対象 operator:
 
@@ -637,7 +637,7 @@ override CFLAGS += -g
 export CC := gcc
 ```
 
-MVP で安全に扱えない場合は整形しない。
+makefile-fmt で安全に扱えない場合は整形しない。
 
 `SHELL` / `.SHELLFLAGS` / `.RECIPEPREFIX` の設定・変更、および危険な特殊名への単純な literal alias は formatting 以前に fatal unsupported。
 
@@ -645,7 +645,7 @@ MVP で安全に扱えない場合は整形しない。
 
 # Trailing Whitespace
 
-MVP では全行一律の trailing whitespace 削除は行わない。
+makefile-fmt では全行一律の trailing whitespace 削除は行わない。
 
 assignment RHS、recipe、continuation 等では trailing whitespace が意味を持つ可能性がある。
 
@@ -655,13 +655,13 @@ assignment RHS、recipe、continuation 等では trailing whitespace が意味�
 
 という方針にする。
 
-初期版では無理に coverage を広げない。
+安全性を確認できない構文へ整形範囲を広げない。
 
 ---
 
 # Recipe Recognition
 
-MVP はデフォルト TAB recipe のみを扱う。
+makefile-fmt はデフォルト TAB recipe のみを扱う。
 
 `.RECIPEPREFIX` は unsupported なので、
 
@@ -681,7 +681,7 @@ foo:
 
 を TAB に修正することはしない。
 
-これは formatting ではなく repair になり得るため、MVP の対象外とする。
+これは formatting ではなく repair になり得るため、makefile-fmt の対象外とする。
 
 ---
 
@@ -794,12 +794,13 @@ Makefile 全体としては対応可能でも、安全に shfmt できない rec
 
 これは fatal error ではない。
 
-MVP は allow-list 方式とし、安全性を確認できた command だけを整形する。
+makefile-fmt は allow-list 方式とし、安全性を確認できた command だけを整形する。
 
-初期版では少なくとも以下を skip する。
+以下を含む recipe command は、現行の safety check と masking で安全に
+処理できる場合を除き skip する。
 
 ```text
-$ を含む
+未対応または安全に mask できない `$`
 heredoc を含む
 shell comment を含む
 quote 状態を安全に判定できない
@@ -816,38 +817,365 @@ scanner が recipe boundary を確定できない
 
 # Make Expansion Masking
 
-以下は v0.1 時点の制限と当時の将来計画である。v0.2 以降は [MVP-0.2.md](MVP-0.2.md) の masking が実装済みであり、recipe 内の `$` を一律 skip する規則は適用しない。
 
-最終的には recipe 内の、
+## 目的
+
+recipe 内に Make 変数展開があっても、shell 部分だけを安全に `shfmt` へ渡せるようにする。
+
+代表例:
+
+```make
+foo.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+```
+
+を shfmt 対象にできるようにする。
+
+## 基本方針
+
+Make expansion は評価しない。
+
+recipe を、
+
+```text
+Make syntax
++
+shell syntax
+```
+
+として扱い、Make 側の要素を一時的に mask して shell skeleton だけを `shfmt` に渡す。
+
+```text
+recipe
+→ Make `$` lexer
+→ Make expansion を placeholder 化
+→ `$$` を shell `$` に変換
+→ shfmt
+→ placeholder round-trip と shell `$` の由来を検証
+→ 元の `$$` に由来する shell `$` だけを `$$` に戻す
+→ placeholder 復元
+```
+
+## 対応対象
+
+まず以下を扱う。
 
 ```make
 $(VAR)
 ${VAR}
+
 $@
-$$x
+$<
+$^
+$?
+$*
+$%
+
+$$
 ```
 
-などを扱う。
+`$(CC)`、`$(CFLAGS)`、automatic variables を主要ユースケースとする。
 
-MVP の初期段階では masking を行わず、以下で固定する。
+`$` は左から字句解析する。`$$` は1組として shell `$` に対応し、`$$$$` は `$$` × 2 とする。`$$$` は `$$` + 未対応の末尾 `$` となるため command 全体を skip する。
+
+対応構文は明示的な allow-list とし、`$|`、`$0`、`$x`、単独の `$`、malformed expression 等は command 単位で skip する。nested expression の内部は評価せず、一つの opaque expression として保持する。
+
+## Placeholder
+
+例えば、
+
+```make
+$(CC) $(CFLAGS) -c $< -o $@
+```
+
+を内部的に、
+
+```sh
+__MAKEFMT_0__ __MAKEFMT_1__ -c __MAKEFMT_2__ -o __MAKEFMT_3__
+```
+
+のようにして `shfmt` へ渡す。
+
+shfmt 後に元の Make expression を完全に復元する。
+
+placeholder は shell の通常の word として扱える形式とし、元入力および既存 placeholder と衝突しない値を選ぶ。single quote / double quote 内の Make expression も masking 対象とする。
+
+shfmt 後、各 placeholder がちょうど1回、完全な形で残っていることを検証する。欠落・重複・変形があれば command 全体を untouched にする。
+
+## `$$`
+
+```make
+echo "$$HOME"
+```
+
+は shell が実際に受け取る形、
+
+```sh
+echo "$HOME"
+```
+
+として shfmt に渡す。
+
+`$$` 由来の shell `$` は専用 placeholder 等で追跡する。復元時には、元の `$$` に由来するものだけを Make recipe 用の `$$` に戻す。shfmt 出力中の他の `$` を一律変換したり、復元済みの Make expression 内の `$` を変換したりしない。
+
+## Parser
+
+regex だけで処理せず、最低限の Make-dollar lexer を作る。
+
+特に、
+
+```make
+$(...)
+${...}
+```
+
+は対応する括弧まで正しく読み取る。
+
+nested expression も「中身を解釈せず、一つの opaque Make expression」として扱えるようにする。
+
+## Safety model
+
+Make expansion の値そのものは評価しない。保証条件は、当初の「単一の word または word fragment」という制約から、以下の **syntactic-role preservation（構文上の役割の維持）** に置き換える。
+
+* Make expansion は、通常の引数列や word fragment を生成してよい。
+* placeholder で認識した shell 構造に対し、Make expansion 前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を変えてはならない。
+* 引数位置での空展開は、その shell command の成立と構文上の役割を維持する場合に限り許可する。
+* command position の expansion、または shell list 内の独立した command に相当する expansion が空になり、その command 自体が消滅するケースは保証対象外とする。
+
+通常の argument word 数が変わること自体は禁止しない。placeholder を含む AST と Make 展開後の AST が word 数まで完全に一致することを要求するのではなく、構文上の役割が維持されることを要求する。
+
+例えば、次は対象となる。
+
+```make
+CFLAGS = -O2 -Wall
+foo.o: foo.c
+	$(CC) $(CFLAGS) -c $<
+```
+
+`CFLAGS =` のような空の引数列も、`$(CC)` が有効な command 名を生成し、command が成立する場合には対象となる。
+
+一方、expansion が `;`、`&& echo done`、`>out`、未閉鎖の quote 等を生成する場合や、command position で reserved word を導入する場合など、構文上の役割を変えるケースは保証対象外とする。
+
+### Command disappearance と no-op
+
+空展開に関する制約は recipe 全体だけでなく、compound command / shell list 内の個々の command にも適用する。
+
+```make
+OPTIONAL =
+all:
+	(echo ok; $(OPTIONAL))
+```
+
+この例は保証対象外である。元は `(echo ok; )` として成立するが、formatter が `$(OPTIONAL)` に相当する command の末尾に `;` を付けると、Make 展開後は `;` だけの空 command が残り syntax error になり得る。
+
+何もしない branch では、空文字列ではなく有効な no-op command を生成する。
+
+```make
+	$(if $(X),echo ok,:)
+	$(if $(X),echo ok,: nothing to do)
+	$(if $(CMD),$(CMD),: nothing to do)
+```
+
+`: nothing to do` は command `:` と通常の引数列であり、今回の制約では許可される。`$(CMD)` の非空側についても、構文上の役割を維持する前提は引き続き適用する。
+
+formatter はこれらの値や条件を評価・検出しない。入力側が満たすべき supported subset の前提であり、違反を静的な fatal unsupported / skip として検出する仕様ではない。formatter が成功しても、この前提を満たすことは証明されない。masking、fatal / skip 判定、terminal semicolon の保持は変更しない。
+
+## Skip
+
+以下は安全に処理できなければ recipe command 単位で untouched とする。
+
+* malformed `$(...)` / `${...}`
+* Make expansion の境界を確定できない
+* placeholder round-trip を保証できない
+* shfmt parse failure
+* その他既存の recipe skip 条件
+
+heredoc、shell comment、backtick、unsafe quote、inline recipe 等の既存 skip 規則を維持する。
+
+明示的な `$(eval ...)` / `${eval ...}` は masking より前に検出し、出現 context に関係なく file-level fatal とする。
+
+この検査は実際の Make 呼び出しより保守的な、入力 bytes 中の呼び出し形の検出である。`$$` を1組とする Make-dollar lexing より前に行い、`$$(eval echo hi)` や `$${eval ...}` に含まれる呼び出し形も fatal（exit 2）とする。前者が Make の `eval` ではなく shell の command substitution を表す場合も例外にしない。単なる `eval` という文字列の出現すべてを拒否するものではない。既存の fatal scan の挙動を維持し、escaped dollar による除外は追加しない。
+
+優先順位は以下とする。
 
 ```text
-recipe command に `$` が存在する
-    → shfmt skip
+fatal check
+→ existing recipe safety checks
+→ Make-dollar lexing
+→ masking
+→ shfmt
+→ placeholder round-trip validation
+→ restore
 ```
 
-ただし、明示的な `eval` 呼び出しは事前の検査で fatal とする。
+## 必須条件
 
-将来 coverage を広げる場合は、
+* 元の Make expression を byte-for-byte で復元する
+* logical recipe command の境界を変えない
+* `@`, `-`, `+` prefix を維持する
+* idempotent
+* placeholder が元入力と衝突しない
+* `$` の Make / shell 境界を壊さない
+
+## 検証要件
+
+Make expression を通常の word 形式の placeholder にし、`$$` を実際の shell `$` に変換した入力を shfmt に渡す。
+
+`$$` がある場合は、その `$` も個別の placeholder にした由来確認用の入力を別途整形する。全 placeholder がちょうど1回残ることを確認し、由来確認用出力の dollar placeholder だけを `$` に戻した結果が実際の shell 整形結果と byte-for-byte で一致することを要求する。その一致を確認した後で、記録した元の Make expression と `$$` を復元する。
+
+由来確認用の入力が parse できない場合や出力が一致しない場合は command 全体を保持する。例えば `$$(command)` は skip する。複数行の Make expression も、改行や TAB を含む元の bytes を確実に復元するため、command 単位で保持する。
+
+Make continuation として再構築した結果を再度同じ処理に通し、復元済みの整形結果が一致することも確認する。
+
+## 対象例
+
+```make
+	$(CC) $(CFLAGS) -c $< -o $@
+	echo "$$HOME"
+	echo "$(NAME)"
+	cp $(SRC) $(DST)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+```
+
+目的は Make expression を理解することではなく、**Make expansion を避けながら shell 部分に shfmt を適用すること**とする。
+
+---
+
+# Rule Header and Recipe Ownership
+
+
+## 目的
+
+複雑な rule header 配下でも、recipe の所属を安全に判定できる場合は recipe formatting を行えるようにする。
+
+代表例:
+
+```make
+$(OUTDIR)/%: %.c | $(OUTDIR)
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
+```
+
+現行実装は header と recipe の安全判定を分離する。構造を安全に認識できる複雑な header 配下では recipe を整形し、header 自体は変更しない。
+
+## 基本方針
+
+rule header 自体は整形しない。
+
+header 内の Make expansion は target / prerequisite の名前やリストを生成する用途を supported subset とする。rule / assignment の区別、inline recipe の有無、recipe の所属、その他 header の構造を動的に生成・変更するケースは supported subset 外とし、formatter はそれを評価・検出しない。formatter の成功は、この前提を満たすことの証明ではない。
 
 ```text
-1. $$ support
-2. simple $(VAR) / ${VAR}
-3. automatic variables
-4. complex Make expression
+rule header
+  → opaque / unchanged
+
+recipe ownership
+  → 安全に判定できるか確認
+
+recipe
+  → recipe-level safety check
+  → safe なら masking → shfmt
 ```
 
-の順に検討する。これらは初期 MVP の整形対象には含めない。
+## 対応する rule header
+
+単一の構文上の `:` を持つ通常 rule / pattern rule を対象とする。
+
+少なくとも以下を含んでいても、rule と recipe の境界を確定できる場合は recipe formatting を許可する。
+
+```text
+$(VAR) を含む target
+% pattern rule
+| order-only prerequisite
+複雑な prerequisite
+上記の組み合わせ
+```
+
+例:
+
+```make
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OUTDIR)/%: %.c | $(OUTDIR)
+	$(CC) $(CFLAGS) $< -o $@
+```
+
+## Skip
+
+以下では recipe formatting を行わない。
+
+* rule と assignment の区別を安全に確定できない
+* inline recipe
+* rule header continuation の境界を安全に判定できない
+* recipe ownership が曖昧
+* recipe-level skip 条件に該当する
+
+`::`、`&:`、`&::`、static pattern rule、inline recipe、target-specific assignment は配下の recipe formatting を skip する。conditional / define 等の保持規則も適用する。
+
+## Rule header の構造認識
+
+単なる文字検索ではなく、Make expression、escape、comment の外側にある構文上の `:` を rule delimiter として認識する。`$(...)` / `${...}` 内にある `:`、`;`、`=` 等は header delimiter として扱わない。
+
+expression の未閉鎖などで構造を確定できない場合は Unknown / ambiguous とし、その配下と思われる recipe も変更しない。
+
+```text
+rule と安全に判定できる
+→ header unchanged
+→ recipe ownership を認める
+
+判定不能
+→ header unchanged
+→ recipe untouched
+```
+
+## Recipe formatting の保証
+
+recipe formatting には以下の仕様を適用する。
+
+* Make-dollar lexer
+* placeholder masking / restore
+* `$$` の由来追跡
+* round-trip validation
+* fatal unsupported 判定
+* recipe-level safety check
+* idempotency
+* unknown / opaque 部分の保持
+
+## 非目標
+
+以下は行わない。
+
+* rule header の整形
+* prerequisite list の整形
+* Make expression の評価
+* supported subset の大幅拡張
+* parser の全面再設計
+
+## 受け入れ条件
+
+```text
+✓ 複雑な rule header 配下でも recipe ownership を安全に認識できる
+✓ header 自体は byte-for-byte で保持
+✓ recipe には recipe-level safety check と masking を適用
+✓ ambiguous な場合は skip
+✓ idempotent
+✓ corpus で semantic issue なし
+```
+
+`$(VAR)` を含む通常 rule、`%` pattern rule、`|` order-only prerequisite を含む rule、およびその組み合わせについて、以下を regression test / 検証で確認する。
+
+* header が byte-for-byte 不変
+* recipe が実際に formatting される
+* idempotent
+* GNU Make 4.4.1 で整形前後の実行結果が一致
+
+## 保守的な構造判定
+
+既存の fatal scan と、recipe formatting を許可するための厳格な header 構造検査を分離する。後者では未閉鎖・曖昧な nested expression を拒否し、式と comment の外側に単一の `:` があることを要求する。
+
+expression 外の escape、および `=`・`&` を含む header は comment 内を除き保守的に skip する。escaped filename や `=` を含む literal prerequisite の対応は必須範囲に含めない。header continuation は既存の logical line 処理で折り畳んだ構造が検査を通る場合に認め、元の physical header は変更しない。末尾で途切れた continuation は整形の許可に使わない。
 
 ---
 
@@ -869,19 +1197,19 @@ endef
 
 # CLI
 
-MVP の CLI は以下。
+makefile-fmt は入力 path をちょうど1件受け取る。入力を省略した場合、複数指定した場合、未知の option を指定した場合は CLI 引数エラー（exit 2）とする。path の解決後に通常ファイルでない場合は I/O error（exit 3）とする。
+
+デフォルトでは整形結果を stdout に出力する。
 
 ```bash
 makefile-fmt Makefile
 ```
 
-整形結果を stdout に出力。
-
 ```bash
 makefile-fmt -w Makefile
 ```
 
-上書き。
+整形結果で入力を更新する。
 
 ```bash
 makefile-fmt --check Makefile
@@ -897,6 +1225,16 @@ makefile-fmt --diff Makefile
 
 diff を表示。
 
+`-w`、`--check`、`--diff` は同時に指定できない。`--` は option parsing を終了し、`-` で始まる入力ファイル名を指定するために使用する。
+
+`--help` は usage を、`--version` はバージョンを stdout に出力して成功終了する。いずれも入力ファイルおよび `shfmt` を必要としない。
+
+## `-w` の安全性
+
+`-w` は全検査と整形が成功した後、入力ファイルと同じ directory に一時ファイルを作成し、atomic rename で置き換える。走査・整形中に入力ファイルを開いて書き込むことはない。
+
+unsupported input、`shfmt` の設定エラー・起動失敗、または入力が処理中に変更された場合は、入力ファイルを更新しない。symlink を指定した場合はリンク先を更新し、permission bits を保持する。複数の hard link を持つファイルの変更は exit 3 で拒否する。所有者、ACL、拡張属性の引き継ぎは保証しない。
+
 ---
 
 # Exit Code
@@ -906,7 +1244,7 @@ diff を表示。
 ```text
 0 = success / already formatted
 1 = --check で formatting difference あり
-2 = unsupported feature / unsafe input
+2 = unsupported feature / unsafe input / CLI 引数エラー
 3 = I/O error / tool configuration error
 ```
 
@@ -985,9 +1323,9 @@ unsupported input
 
 ---
 
-# MVP の非目標
+# 非目標
 
-以下は MVP ではやらない。
+以下は makefile-fmt ではやらない。
 
 ```text
 GNU Make の完全 parser
@@ -1012,9 +1350,9 @@ GNU Make 以外の make dialect 対応
 
 ---
 
-# MVP 完成条件
+# 現行の受け入れ条件
 
-以下が動けば v0.1 とする。
+以下を満たす。
 
 ```text
 ✓ 全文 pre-scan
@@ -1031,6 +1369,11 @@ GNU Make 以外の make dialect 対応
 ✓ forked shfmt invocation
 ✓ multiline shell の Make continuation 再構築
 ✓ unsafe recipe の skip
+✓ Make expansion の allow-list masking、`$$` の由来追跡、placeholder round-trip 検証
+✓ 安全に認識した variable-expanded / pattern / order-only rule 配下の recipe formatting
+✓ header と opaque region の byte-for-byte 保持
+✓ 先頭空行の削除と通常領域の連続空行の圧縮（define 本文を除く）
+✓ 非空入力の末尾 LF 改行1つへの正規化
 ✓ --check
 ✓ --diff
 ✓ -w
@@ -1039,7 +1382,7 @@ GNU Make 以外の make dialect 対応
 ✓ tool configuration error 時の no-write guarantee
 ```
 
-MVP の目的は、
+makefile-fmt の目的は、
 
 > 多くの Makefile を整形できること
 

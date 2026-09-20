@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* Consolidate the former MVP documents into the canonical [SPEC.md](SPEC.md).
 * Remove leading blank lines and collapse consecutive blank lines outside
   `define` bodies to one line.
 * Normalize non-empty inputs to exactly one final LF newline, including inputs
@@ -11,7 +12,7 @@
 
 Documentation and regression-test release; formatting behavior is unchanged.
 
-* Clarify the v0.1 scope of MVP.md, the unimplemented blank-line cleanup plan,
+* Clarify the historical v0.1 scope, the unimplemented blank-line cleanup plan,
   recipe whitespace handling, and conservative rejection of escaped-dollar
   eval call patterns such as `$$(eval ...)`. No formatter behavior changes.
 * Replace the recipe expansion single-word precondition with syntactic-role
@@ -75,6 +76,6 @@ For example, recipes under `$(OUTDIR):` or
 from recipe-formatting safety is deferred to a future version.
 
 The semantic-preservation baseline remains GNU Make 4.4.1 and the supported
-subset in [MVP.md](MVP.md) and [MVP-0.2.md](MVP-0.2.md). Make expansions must
+subset in [SPEC.md](SPEC.md). Make expansions must
 produce a single shell word or word fragment, not shell grammar, multiple words,
 or operators; the formatter does not evaluate or verify those values.

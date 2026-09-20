@@ -1,4 +1,4 @@
-//! Conservative formatting for the subset in MVP.md, MVP-0.2.md and MVP-0.3.md.
+//! Conservative formatting for the subset in SPEC.md.
 
 mod masking;
 mod normalize;
@@ -36,7 +36,7 @@ impl Error {
 }
 
 /// Read-only transformation. No edits escape if safety or tool checks fail.
-/// Success does not certify the external assumptions in MVP.md.
+/// Success does not certify the external assumptions in SPEC.md.
 pub fn format(source: &[u8], shfmt_path: impl AsRef<OsStr>) -> Result<Vec<u8>, Error> {
     let lines = scan::scan(source).map_err(Error::Unsupported)?;
     let shfmt = shfmt::Shfmt::new(shfmt_path.as_ref())?;

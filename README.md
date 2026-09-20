@@ -3,7 +3,7 @@
 GNU Makefile の意味を変えないことを優先した、保守的な formatter です。
 v0.3 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
 
-安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。基本の保証前提は [MVP.md](MVP.md)、Make expansion masking は [MVP-0.2.md](MVP-0.2.md)、rule header と recipe の所属判定は [MVP-0.3.md](MVP-0.3.md) を参照してください。
+安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。保証前提、Make expansion masking、rule header と recipe の所属判定は [仕様書](SPEC.md) を参照してください。
 
 バージョンごとの変更と既知の制限は [リリースノート](CHANGELOG.md) を参照してください。
 
