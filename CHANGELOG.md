@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Change `--diff` to exit 1 when formatting differences are found (previously 0).
+  It still exits 0 when no differences are found.
 * Consolidate the former MVP documents into the canonical [SPEC.md](SPEC.md).
 * Remove leading blank lines and collapse consecutive blank lines outside
   `define` bodies to one line.

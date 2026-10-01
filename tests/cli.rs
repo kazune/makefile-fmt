@@ -60,7 +60,7 @@ fn stdout_check_diff_and_write() {
     assert_eq!(check.status.code(), Some(1));
     assert!(check.stdout.is_empty());
     let diff = workspace.run(&["--diff", "Makefile"], None);
-    assert_eq!(diff.status.code(), Some(0));
+    assert_eq!(diff.status.code(), Some(1));
     assert!(diff.stdout.starts_with(b"--- Makefile\n+++ Makefile\n@@"));
     assert_eq!(fs::read(&input).unwrap(), original);
     let write = workspace.run(&["-w", "Makefile"], None);
@@ -73,12 +73,9 @@ fn stdout_check_diff_and_write() {
             .status
             .success()
     );
-    assert!(
-        workspace
-            .run(&["--diff", "Makefile"], None)
-            .stdout
-            .is_empty()
-    );
+    let diff = workspace.run(&["--diff", "Makefile"], None);
+    assert_eq!(diff.status.code(), Some(0));
+    assert!(diff.stdout.is_empty());
 }
 
 #[test]
@@ -86,8 +83,9 @@ fn diff_keeps_unchanged_lines_as_context() {
     let workspace = Workspace::new();
     workspace.write("Makefile", b"A=1\nKEEP = ok\nB=2\n");
     let output = workspace.run(&["--diff", "Makefile"], None);
-    assert!(
-        output.status.success(),
+    assert_eq!(
+        output.status.code(),
+        Some(1),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -120,7 +118,7 @@ fn diff_shows_each_blank_line_normalization() {
     for &(name, input, expected) in cases {
         workspace.write(name, input);
         let output = workspace.run(&["--diff", name], None);
-        assert!(output.status.success());
+        assert_eq!(output.status.code(), Some(1));
         assert_eq!(output.stdout, expected, "{name}");
     }
 }
@@ -136,7 +134,7 @@ fn masking_works_through_check_diff_and_write() {
         Some(1)
     );
     let diff = workspace.run(&["--diff", "Makefile"], None);
-    assert!(diff.status.success());
+    assert_eq!(diff.status.code(), Some(1));
     assert!(!String::from_utf8_lossy(&diff.stdout).contains("__MAKEFMT_1_"));
     assert!(String::from_utf8_lossy(&diff.stdout).contains("+\techo \"$$HOME\";"));
     assert_eq!(fs::read(&input).unwrap(), original);
@@ -162,7 +160,7 @@ fn complex_headers_work_through_stdout_check_diff_and_write() {
         Some(1)
     );
     let diff = workspace.run(&["--diff", "Makefile"], None);
-    assert!(diff.status.success());
+    assert_eq!(diff.status.code(), Some(1));
     assert_eq!(diff.stdout, b"--- Makefile\n+++ Makefile\n@@ -1,8 +1,8 @@\n $(OUTDIR):\n-\tmkdir -p $(OUTDIR)\n+\tmkdir -p $(OUTDIR);\n \n $(OUTDIR)/%: %.c | $(OUTDIR)\n-\t$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)\n+\t$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS);\n \n clean:\n-\trm -rf $(OUTDIR)\n+\trm -rf $(OUTDIR);\n");
     assert_eq!(fs::read(&input).unwrap(), original);
     let write = workspace.run(&["-w", "Makefile"], None);

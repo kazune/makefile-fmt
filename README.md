@@ -27,8 +27,8 @@ cargo build --release
 
 | 終了コード | 意味 |
 | --- | --- |
-| 0 | 成功。`--diff` は差分があっても 0 |
-| 1 | `--check` で差分あり |
+| 0 | 成功。`--check` / `--diff` では差分なし |
+| 1 | `--check` / `--diff` で差分あり |
 | 2 | unsupported feature / unsafe input / CLI 引数エラー |
 | 3 | I/O エラー / shfmt の起動失敗・必須機能不足など |
 

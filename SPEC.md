@@ -1223,7 +1223,7 @@ CI 用途では差分がある場合 non-zero exit。
 makefile-fmt --diff Makefile
 ```
 
-diff を表示。
+diff を表示。差分がある場合は終了コード 1、ない場合は 0 を返す。
 
 `-w`、`--check`、`--diff` は同時に指定できない。`--` は option parsing を終了し、`-` で始まる入力ファイル名を指定するために使用する。
 
@@ -1243,7 +1243,7 @@ unsupported input、`shfmt` の設定エラー・起動失敗、または入力�
 
 ```text
 0 = success / already formatted
-1 = --check で formatting difference あり
+1 = --check / --diff で formatting difference あり
 2 = unsupported feature / unsafe input / CLI 引数エラー
 3 = I/O error / tool configuration error
 ```

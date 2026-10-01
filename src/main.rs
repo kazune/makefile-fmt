@@ -14,7 +14,7 @@ Format a GNU Makefile using the subset in SPEC.md.\n\
 Requires forked shfmt with --explicit-semicolons on PATH.\n\n\
   -w         Replace FILE after all checks succeed\n\
   --check    Exit 1 if formatting would change FILE\n\
-  --diff     Print a unified diff (exit 0 on success)\n\
+  --diff     Print a unified diff; exit 1 if formatting would change FILE\n\
   --help     Show this help\n\
   --version  Show the version\n";
 
@@ -88,10 +88,13 @@ fn run() -> Result<u8, (u8, String)> {
             .lock()
             .write_all(&formatted)
             .map_err(io_error)?,
-        Mode::Diff if changed => io::stdout()
-            .lock()
-            .write_all(&output::diff(&path, &source, &formatted))
-            .map_err(io_error)?,
+        Mode::Diff if changed => {
+            io::stdout()
+                .lock()
+                .write_all(&output::diff(&path, &source, &formatted))
+                .map_err(io_error)?;
+            return Ok(1);
+        }
         Mode::Write if changed => {
             output::replace(&resolved, &source, &formatted, &metadata).map_err(io_error)?
         }
