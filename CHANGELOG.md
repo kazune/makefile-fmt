@@ -1,6 +1,8 @@
 # Release notes
 
-## Unreleased
+## v0.4.0
+
+This release changes `--diff` exit behavior and blank-line/final-newline formatting.
 
 * Change `--diff` to exit 1 when formatting differences are found (previously 0).
   It still exits 0 when no differences are found.
@@ -9,6 +11,12 @@
   `define` bodies to one line.
 * Normalize non-empty inputs to exactly one final LF newline, including inputs
   consisting only of blank lines.
+* Add [TODO.md](TODO.md) for future CLI improvements.
+
+Scripts using `--diff` must now handle exit 1 as formatting differences rather
+than a processing error. Use `--check` for the same exit behavior without diff
+output. Unsupported/unsafe input and CLI argument errors still exit 2; I/O and
+tool configuration errors still exit 3.
 
 ## v0.3.1
 

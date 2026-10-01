@@ -1,11 +1,12 @@
 # makefile-fmt
 
 GNU Makefile の意味を変えないことを優先した、保守的な formatter です。
-v0.3 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
+v0.4 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
 
 安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。保証前提、Make expansion masking、rule header と recipe の所属判定は [仕様書](SPEC.md) を参照してください。
 
 バージョンごとの変更と既知の制限は [リリースノート](CHANGELOG.md) を参照してください。
+今後の機能候補は [TODO](TODO.md) に記載しています。
 
 ## ビルドと使用方法
 
@@ -19,7 +20,7 @@ cargo build --release
 ./target/release/makefile-fmt -w Makefile
 ```
 
-デフォルトは整形結果を stdout に出力します。`--check` は差分の有無を終了コードで返し、`--diff` は unified diff を出力します。`-w` は元のファイルを更新します。一度に指定できる入力は通常ファイル1件で、モードの併用はできません。`-` で始まるファイル名には `--` を使用できます。
+デフォルトは整形結果を stdout に出力します。`--check` は差分の有無を終了コードで返し、`--diff` は同じ終了コードで unified diff も出力します。`-w` は元のファイルを更新します。一度に指定できる入力は通常ファイル1件で、モードの併用はできません。`-` で始まるファイル名には `--` を使用できます。
 
 ```sh
 ./target/release/makefile-fmt -- -Makefile
@@ -31,6 +32,8 @@ cargo build --release
 | 1 | `--check` / `--diff` で差分あり |
 | 2 | unsupported feature / unsafe input / CLI 引数エラー |
 | 3 | I/O エラー / shfmt の起動失敗・必須機能不足など |
+
+v0.4.0 から `--diff` は差分がある場合に 1 を返します。v0.3.1 以前では差分があっても 0 でした。
 
 整形時に GNU Make や recipe の command を実行することはありません。shell 構文の整形だけを shfmt に委譲します。recipe がないファイルでも、処理開始時に shfmt の必須機能を検査します。
 
