@@ -1,7 +1,7 @@
 # makefile-fmt
 
 GNU Makefile の意味を変えないことを優先した、保守的な formatter です。
-v0.4 の意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
+意味保存の保証基準は **GNU Make 4.4.1** です。3.x 系を含む古い GNU Make との互換性は保証しません。
 
 安全に認識できる単純な変数代入と TAB recipe を整形します。未知の構文や安全に処理できない command は原文を保持します。保証前提、Make expansion masking、rule header と recipe の所属判定は [仕様書](SPEC.md) を参照してください。
 
@@ -32,8 +32,6 @@ cargo build --release
 | 1 | `--check` / `--diff` で差分あり |
 | 2 | unsupported feature / unsafe input / CLI 引数エラー |
 | 3 | I/O エラー / shfmt の起動失敗・必須機能不足など |
-
-v0.4.0 から `--diff` は差分がある場合に 1 を返します。v0.3.1 以前では差分があっても 0 でした。
 
 整形時に GNU Make や recipe の command を実行することはありません。shell 構文の整形だけを shfmt に委譲します。recipe がないファイルでも、処理開始時に shfmt の必須機能を検査します。
 
@@ -69,7 +67,7 @@ recipe は logical command ごとに処理し、shell の起動単位と先頭�
 
 recipe formatting では、shfmt が付与する末尾の semicolon (`;`) を最終出力にも保持し、独自には除去しません。すべての command に一律に `;` を追加するわけではありません。skip された command は原文を保持するため、整形対象と skip 対象で末尾の `;` の有無が混在することも仕様上許容します。
 
-v0.2 以降は `$(...)`、`${...}`、`$@`、`$<`、`$^`、`$?`、`$*`、`$%`、`$$` を左から字句解析します。nested expression や引用符内の Make expansion も、値を評価せずに一時的に mask して元の bytes に復元します。例えば次の recipe も整形対象です。
+`$(...)`、`${...}`、`$@`、`$<`、`$^`、`$?`、`$*`、`$%`、`$$` を左から字句解析します。nested expression や引用符内の Make expansion も、値を評価せずに一時的に mask して元の bytes に復元します。例えば次の recipe も整形対象です。
 
 ```make
 foo.o:
@@ -80,7 +78,7 @@ foo.o:
 
 `$$` は shell `$` として shfmt に渡し、別途 placeholder を使った整形結果と照合して由来を確認します。shfmt 出力の `$` を一律に二重化することはありません。`$$$$` は2組として扱い、未対応の末尾 `$` が残る `$$$` は command 全体を保持します。
 
-v0.3 では、単一の構文上の `:` を持つ通常 rule / pattern rule について、header を byte-for-byte で保持したまま配下の recipe を整形します。variable-expanded target / prerequisite、`%`、`|` とその組み合わせも対象です。例えば以下の両 recipe が整形対象になります。
+単一の構文上の `:` を持つ通常 rule / pattern rule について、header を byte-for-byte で保持したまま配下の recipe を整形します。variable-expanded target / prerequisite、`%`、`|` とその組み合わせも対象です。例えば以下の両 recipe が整形対象になります。
 
 ```make
 $(OUTDIR):
@@ -97,7 +95,7 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 * `define` 本文、未知の構文、conditional 内の整形対象。
 * `::`、`&:`、`&::`、static pattern rule、inline recipe、target-specific assignment、およびその配下の recipe。
 * 未閉鎖の Make expression 等で構造や所属を確定できない header とその配下の recipe。
-* 初期実装では、expression 外に escape や `=`・`&` を含む header（comment 内を除く）とその配下の recipe も保守的に保持。
+* expression 外に escape や `=`・`&` を含む header（comment 内を除く）とその配下の recipe。
 * `$|`、`$0`、`$x` 等の未対応 `$` 構文や、閉じ括弧の欠けた Make expression を含む command。
 * backtick、heredoc、shell comment を含む command。
 * 引用符の状態や改行の再構築を安全に判断できない command。
@@ -106,7 +104,7 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 
 `#` や `<<` を含む command は、引用符内にある場合も保守的に保持します。改行コードが混在する logical command も保持します。
 
-初期実装では、複数行の Make expression と、由来確認用入力を安全に整形できない `$$(command)` 等も保持します。
+複数行の Make expression と、由来確認用入力を安全に整形できない `$$(command)` 等も保持します。
 
 単純な変数代入の operator は `=`、`:=`、`::=`、`:::=`、`?=`、`+=`、`!=` に対応します。assignment RHS の内容・末尾空白と、未変更領域の bytes（trailing whitespace を含む）は保持します。ただし、ファイル先頭の空行は削除し、連続する空行は1つに圧縮します。`define` 本文の空行は値の一部なので対象外です。非空入力の末尾は LF 改行1つに統一します。空白行だけの非空入力も LF 改行1つになります。trailing whitespace の一律削除は行いません。整形対象 recipe の trailing whitespace や内部レイアウトは shfmt の規則に従って変更されることがあります。
 
@@ -114,7 +112,7 @@ Make expression 内の `:`・`;`・`=` は rule delimiter として扱いませ�
 
 Unix 系環境と GNU Make 4.4.1 の通常の shell 実行モデルを前提にします。外部からの `SHELL` / `.SHELLFLAGS` の変更や、特殊名・`eval` 呼び出しの動的生成は保証対象外です。
 
-recipe 内の Make expansion は通常の引数列や word fragment を生成して構いません。ただし、placeholder で認識した shell 構造に対し、展開前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を維持することが前提です。`$(CFLAGS)` が `-O2 -Wall` のような複数引数を生成する場合や、空でも shell command が成立する場合は対象です。これは当初の「単一 word」制約を置き換える保証条件であり、word 数まで同一の AST を要求するものではありません。
+recipe 内の Make expansion は通常の引数列や word fragment を生成して構いません。ただし、placeholder で認識した shell 構造に対し、展開前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を維持することが前提です。`$(CFLAGS)` が `-O2 -Wall` のような複数引数を生成する場合や、空でも shell command が成立する場合は対象です。word 数まで同一の AST を要求するものではありません。
 
 command position の expansion、または shell list 内の独立した command に相当する expansion が空になり、その command 自体が消滅するケースは保証対象外です。recipe 全体だけでなく、例えば `(echo ok; $(OPTIONAL))` の `$(OPTIONAL)` が空になる場合も該当します。formatter が付与した `;` だけが残り、shell の syntax error を起こし得ます。何もしない branch では、空文字列ではなく有効な no-op command を生成してください。
 
@@ -155,6 +153,4 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-fixture の期待値・冪等性、GNU Make での整形前後の実行結果、assignment / directive 境界、define 本文の保持、CRLF、CLI の終了コードと no-write 保証を検証します。v0.2 では dollar の字句解析、placeholder 衝突・欠落・重複・変形、quoted context、`$$` の復元も検証します。
-
-v0.3 では variable-expanded rule、pattern rule、order-only prerequisite、nested expression、header continuation を含む8例に LF / CRLF・末尾改行の有無を組み合わせた32ケースの回帰 corpus で、header 不変・recipe の整形・冪等性・GNU Make 4.4.1 の実行結果一致を検証します。実プロジェクト85ファイルの過去の corpus 検証とは別の、小規模な検証セットです。
+整形結果の期待値、冪等性、GNU Make での整形前後の実行結果、CLI の動作を検証します。詳細は [仕様書](SPEC.md) と [テストコード](tests/) を参照してください。

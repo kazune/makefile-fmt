@@ -1,8 +1,8 @@
 # makefile-fmt Specification
 
-この文書は `makefile-fmt` の正規仕様である。README は導入と使い方、CHANGELOG はリリース履歴を扱う。
+この文書は `makefile-fmt` の正規仕様である。README は導入と使い方を扱う。README とこの文書には現行仕様のみを記載し、過去バージョンの仕様・変更経緯・過去の検証結果は CHANGELOG に集約する。
 
-v0.4.0 の実装が保証する対象範囲、安全性の境界、CLI の挙動を定義する。
+現行実装が保証する対象範囲、安全性の境界、CLI の挙動を定義する。
 
 ## 目的
 
@@ -340,7 +340,7 @@ ${eval ...}
 
 通常の structural context と独立した検査を行い、明示的な呼び出しは出現 context に関係なく fatal unsupported とする。comment、recipe、define body も例外にしない。
 
-実装の検出範囲は、実際の Make `eval` 呼び出しより保守的である。入力 bytes 中の `$(eval ...)` / `${eval ...}` という呼び出し形を検査し、この検査では `$$` を字句解析しない。そのため `$$(eval echo hi)` や `$${eval ...}` も内部の呼び出し形に一致し、exit 2 の fatal unsupported となる。`$$(eval echo hi)` は Make の `eval` 呼び出しではなく shell 側の command substitution を表せるが、それも意図的に拒否する範囲に含める。単に `eval` という文字列が含まれるだけで一律に拒否するわけではない。この保守的な挙動は現行版にも引き継がれる。
+実装の検出範囲は、実際の Make `eval` 呼び出しより保守的である。入力 bytes 中の `$(eval ...)` / `${eval ...}` という呼び出し形を検査し、この検査では `$$` を字句解析しない。そのため `$$(eval echo hi)` や `$${eval ...}` も内部の呼び出し形に一致し、exit 2 の fatal unsupported となる。`$$(eval echo hi)` は Make の `eval` 呼び出しではなく shell 側の command substitution を表せるが、それも意図的に拒否する範囲に含める。単に `eval` という文字列が含まれるだけで一律に拒否するわけではない。
 
 ```make
 all:
@@ -935,7 +935,7 @@ nested expression も「中身を解釈せず、一つの opaque Make expression
 
 ## Safety model
 
-Make expansion の値そのものは評価しない。保証条件は、当初の「単一の word または word fragment」という制約から、以下の **syntactic-role preservation（構文上の役割の維持）** に置き換える。
+Make expansion の値そのものは評価しない。保証条件は、以下の **syntactic-role preservation（構文上の役割の維持）** とする。
 
 * Make expansion は、通常の引数列や word fragment を生成してよい。
 * placeholder で認識した shell 構造に対し、Make expansion 前後で command、reserved word、operator、redirection、quote、control structure 等の構文上の役割を変えてはならない。
